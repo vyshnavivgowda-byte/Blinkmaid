@@ -29,6 +29,6 @@
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
     "**/*.mts"
-  ],
+, "app/(admin)/admin/admin-services/page.jsx", "app/(admin)/admin/admin-pricing/app/(admin)/admin/enquiries/page.jsxies/app/(admin)/admin/categories/paeg.jsxies/paeg.jsx"  ],
   "exclude": ["node_modules"]
 }
