@@ -12,7 +12,6 @@ import { supabase } from "../../lib/supabaseClient";
 const menuItems = [
   { label: "Home", path: "/" },
   { label: "Services", path: "/services" },
-  { label: "Pricing", path: "/pricing" },
   { label: "Maid Registration", path: "/maid-registration" },
   { label: "About Us", path: "/about" },
   { label: "Contact Us", path: "/contact" },

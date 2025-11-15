@@ -26,8 +26,11 @@ export default function ServiceDetailsPage() {
     const [subServices, setSubServices] = useState([]);
     const [selectedSubService, setSelectedSubService] = useState(null);
     const [questions, setQuestions] = useState([]);
+    const [finalTotal, setFinalTotal] = useState(0);  // New state for the locked-in total from popup
     const [step, setStep] = useState(1);
     const [totalPrice, setTotalPrice] = useState(0);
+    const [questionPrices, setQuestionPrices] = useState({});
+
     const [bookingData, setBookingData] = useState({
         startDate: "",
         workTime: "",
@@ -58,19 +61,37 @@ export default function ServiceDetailsPage() {
         fetchCities();
     }, []);
 
+    // Update totalPrice when service, selectedSubService, or questionPrices change
+    useEffect(() => {
+        const servicePrice = service?.price || 0;
+        const subPrice = selectedSubService?.price || 0;
+        const qPrice = Object.values(questionPrices).reduce((a, b) => a + b, 0);
+        const newTotal = servicePrice + subPrice + qPrice;
+        setTotalPrice(newTotal);
+        console.log("Total Price Updated:", newTotal, { servicePrice, subPrice, qPrice }); // Debug log
+    }, [service, selectedSubService, questionPrices]);
+
+    // ... (your existing useEffect for updating totalPrice)
+
+    // Add this new useEffect right here, after the totalPrice useEffect
+    useEffect(() => {
+        if (step === 3) {
+            console.log("Step 3 Final Total:", finalTotal);  // Verify it's correct
+        }
+    }, [step, finalTotal]);
+
+    // ... (rest of your component, starting with const [salary, setSalary] = useState(6500);)
+
     const [salary, setSalary] = useState(6500);
     const handleProceedToPay = () => {
         setDiscountApplied(true);
     };
 
-
+    // Updated handleBooking (use finalTotal)
+    // Updated handleBooking (remove question_prices from insert to avoid schema error)
     const handleBooking = async () => {
         try {
-            const {
-                startDate,
-                workTime,
-                notes,
-            } = bookingData;
+            const { startDate, workTime, notes } = bookingData;
 
             if (!startDate || !workTime) {
                 alert("Please fill in date and time before confirming booking.");
@@ -82,14 +103,13 @@ export default function ServiceDetailsPage() {
 
             if (!user) {
                 alert("Please log in to confirm booking.");
-                router.push("/login");
                 return;
             }
 
             const selectedCity = cities.find((c) => c.id === selectedCityId)?.name || "N/A";
-            const servicePrice = service?.price || 0;
-            const subServicePrice = selectedSubService?.price || 0;
-            const total = servicePrice + subServicePrice;
+
+            // Use finalTotal (locked-in from popup)
+            const total = finalTotal;
             const finalAmount = discountApplied ? total * 0.8 : total;
 
             const { data, error } = await supabase
@@ -102,11 +122,10 @@ export default function ServiceDetailsPage() {
                         city: selectedCity || "N/A",
                         service_price: service?.price || 0,
                         sub_service_price: selectedSubService?.price || 0,
-                        total_price: (service?.price || 0) + (selectedSubService?.price || 0),
+                        // Removed: question_prices: questionPrices,  // Avoids schema error since column doesn't exist
+                        total_price: total,
                         discount_applied: discountApplied,
-                        final_amount: discountApplied
-                            ? ((service?.price || 0) + (selectedSubService?.price || 0)) * 0.8
-                            : (service?.price || 0) + (selectedSubService?.price || 0),
+                        final_amount: finalAmount,
                     },
                 ])
                 .select();
@@ -126,29 +145,55 @@ export default function ServiceDetailsPage() {
             alert("❌ Failed to save booking. Please try again.");
         }
     };
-
-    // 🔹 Handle city select
+    // Updated handleCitySelect (add debug log)
     const handleCitySelect = async (cityId) => {
         setSelectedCityId(cityId);
-        const { data, error } = await supabase
+
+        // 1️⃣ Fetch the correct service for the selected city
+        const { data: serviceData, error: serviceError } = await supabase
+            .from("services")
+            .select("*")
+            .eq("name", service?.name)     // match service name
+            .eq("city_id", cityId)         // match selected city
+            .single();
+
+        if (!serviceData) {
+            console.log("No service in this city. Showing empty sub-services.");
+            setSubServices([]); // no sub services
+            setStep(2);
+            return;
+        }
+
+        if (serviceError) {
+            console.error("Error fetching service:", serviceError);
+            return;
+        }
+
+
+        console.log("Matched Service:", serviceData);
+
+        // 2️⃣ Fetch sub-services for this city-specific service.id
+        const { data: subData, error: subError } = await supabase
             .from("sub_services")
             .select("*")
-            .eq("service_id", id);
+            .eq("service_id", serviceData.id);
 
-        if (error) console.error(error);
-        else setSubServices(data || []);
+        if (subError) {
+            console.error("Error fetching sub-services:", subError);
+        } else {
+            console.log("Sub-services:", subData);
+            setSubServices(subData || []);
+        }
+
         setStep(2);
         window.scrollTo({ top: 0, behavior: "smooth" });
     };
 
+
     // 🔹 Handle Sub-service click
     const handleSubServiceClick = async (subService) => {
         setSelectedSubService(subService);
-
-        // Calculate price
-        const servicePrice = service?.price || 0;
-        const subPrice = subService?.price || 0;
-        setTotalPrice(servicePrice + subPrice);
+        setQuestionPrices({}); // Reset question prices when selecting new sub-service
 
         const { data, error } = await supabase
             .from("sub_service_questions")
@@ -162,6 +207,7 @@ export default function ServiceDetailsPage() {
     const closePopup = () => {
         setSelectedSubService(null);
         setQuestions([]);
+        setQuestionPrices({});
     };
 
     if (!service) {
@@ -173,10 +219,10 @@ export default function ServiceDetailsPage() {
     }
 
     const handleSubServiceSelect = (sub) => {
-  setSelectedSubService(sub);
-  const newTotal = (service?.price || 0) + (sub?.price || 0);
-  setTotalPrice(newTotal);
-};
+        setSelectedSubService(sub);
+        const newTotal = (service?.price || 0) + (sub?.price || 0);
+        setTotalPrice(newTotal);
+    };
 
     return (
         <div className="bg-gradient-to-br from-gray-50 to-red-50 min-h-screen text-gray-900">
@@ -318,29 +364,43 @@ export default function ServiceDetailsPage() {
                                 Choose a <span className="bg-gradient-to-r from-red-500 to-red-600 bg-clip-text text-transparent">Sub-Service</span>
                             </h2>
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                                {subServices.map((sub) => (
-                                    <motion.div
-                                        key={sub.id}
-                                        className={`p-6 rounded-2xl transition-all duration-300 border shadow-xl hover:shadow-2xl cursor-pointer transform hover:scale-105 backdrop-blur-sm ${selectedSubService?.id === sub.id
-                                            ? "border-red-500 bg-red-50/80 ring-4 ring-red-200"
-                                            : "border-gray-200 hover:border-red-400 bg-white/50"
-                                            }`}
-                                        onClick={() => handleSubServiceClick(sub)}
-                                        role="button"
-                                        tabIndex={0}
-                                        onKeyDown={(e) => e.key === 'Enter' && handleSubServiceClick(sub)}
-                                        aria-selected={selectedSubService?.id === sub.id}
-                                        whileHover={{ y: -5 }}
-                                    >
-                                        <h3 className="text-xl font-bold text-gray-800 mb-3">
-                                            {sub.name}
-                                        </h3>
-                                        <p className="text-gray-600 text-sm mb-4 leading-relaxed">
-                                            {sub.description || "No description provided."}
+                                {subServices.length === 0 ? (
+                                    <div className="col-span-full text-center py-10">
+                                        <p className="text-gray-600 text-lg font-semibold">
+                                            ❌ No sub-services found for this service in the selected city.
                                         </p>
-                                        <p className="text-red-600 font-bold text-lg">₹{sub.price}</p>
-                                    </motion.div>
-                                ))}
+                                        <p className="text-gray-500 text-sm mt-2">
+                                            Try selecting another city.
+                                        </p>
+                                    </div>
+                                ) : (
+                                    subServices.map((sub) => (
+                                        <motion.div
+                                            key={sub.id}
+                                            className={`p-6 rounded-2xl transition-all duration-300 border shadow-xl hover:shadow-2xl cursor-pointer transform hover:scale-105 backdrop-blur-sm ${selectedSubService?.id === sub.id
+                                                ? "border-red-500 bg-red-50/80 ring-4 ring-red-200"
+                                                : "border-gray-200 hover:border-red-400 bg-white/50"
+                                                }`}
+                                            onClick={() => handleSubServiceClick(sub)}
+                                            role="button"
+                                            tabIndex={0}
+                                            onKeyDown={(e) => e.key === "Enter" && handleSubServiceClick(sub)}
+                                            aria-selected={selectedSubService?.id === sub.id}
+                                            whileHover={{ y: -5 }}
+                                        >
+                                            <h3 className="text-xl font-bold text-gray-800 mb-3 truncate">
+                                                {sub.name}
+                                            </h3>
+
+                                            <p className="text-gray-600 text-sm mb-4 leading-relaxed line-clamp-5">
+                                                {sub.description || "No description provided."}
+                                            </p>
+
+                                            <p className="text-red-600 font-bold text-lg">₹{sub.price}</p>
+                                        </motion.div>
+                                    ))
+                                )}
+
                             </div>
                         </motion.div>
                     )}
@@ -360,17 +420,17 @@ export default function ServiceDetailsPage() {
                             {/* Added Content */}
                             <div className="text-center mb-8 space-y-2">
                                 <p className="text-lg font-semibold mt-4">
-                                    Monthly Salary:{" "}
+                                    Total Service Amount:{" "}
                                     {discountApplied ? (
                                         <>
-                                            <span className="line-through text-gray-500">₹{salary}</span>{" "}
+                                            <span className="line-through text-gray-500">₹{finalTotal}</span>{" "}
                                             <span className="text-green-600 font-bold">
-                                                ₹{salary - salary * 0.2}
+                                                ₹{(finalTotal * 0.8).toFixed(2)}
                                             </span>{" "}
                                             <span className="text-sm text-green-500">(20% discount applied)</span>
                                         </>
                                     ) : (
-                                        <>₹{salary}</>
+                                        <>₹{finalTotal}</>
                                     )}
                                 </p>
 
@@ -405,6 +465,7 @@ export default function ServiceDetailsPage() {
                                         }
                                         value={bookingData.startDate || ''}
                                     />
+
                                 </div>
                                 <div>
                                     <label className="block font-bold mb-2 text-gray-700 text-base" htmlFor="workTime">
@@ -467,14 +528,14 @@ export default function ServiceDetailsPage() {
                                             <strong>Total Price:</strong>{" "}
                                             {discountApplied ? (
                                                 <>
-                                                    <span className="line-through text-gray-500">₹{totalPrice}</span>{" "}
+                                                    <span className="line-through text-gray-500">₹{finalTotal}</span>{" "}
                                                     <span className="text-green-600 font-bold">
-                                                        ₹{(totalPrice * 0.8).toFixed(2)}
+                                                        ₹{(finalTotal * 0.8).toFixed(2)}
                                                     </span>{" "}
                                                     <span className="text-sm text-green-500">(20% subscription discount applied)</span>
                                                 </>
                                             ) : (
-                                                <span className="text-red-600 font-bold">₹{totalPrice}</span>
+                                                <span className="text-red-600 font-bold">₹{finalTotal}</span>
                                             )}
                                         </p>
 
@@ -632,7 +693,7 @@ export default function ServiceDetailsPage() {
                             </button>
 
                             <h3 className="text-xl font-extrabold text-gray-800 mb-4 text-center">
-                                🧹 <span className="bg-gradient-to-r from-red-500 to-red-600 bg-clip-text text-transparent">{selectedSubService.name}</span>
+                                <span className="bg-gradient-to-r from-red-500 to-red-600 bg-clip-text text-transparent">{selectedSubService.name}</span>
                             </h3>
 
                             <p className="text-center text-gray-600 text-[12px] mb-3">
@@ -655,105 +716,134 @@ export default function ServiceDetailsPage() {
                                 <form
                                     onSubmit={(e) => {
                                         e.preventDefault();
+
+                                        // Calculate and lock in the final total from the popup
+                                        const servicePrice = service?.price || 0;
+                                        const subPrice = selectedSubService?.price || 0;
+                                        const qPrice = Object.values(questionPrices).reduce((a, b) => a + b, 0);
+                                        const calculatedTotal = servicePrice + subPrice + qPrice;
+                                        setFinalTotal(calculatedTotal);  // Set the new state
+
                                         closePopup();
                                         setStep(3);
                                         window.scrollTo({ top: 0, behavior: "smooth" });
                                     }}
                                     className="space-y-4"
                                 >
-                                    {questions.map((q) => (
-                                        <motion.div
-                                            key={q.id}
-                                            className="p-3 border border-gray-200 rounded-2xl bg-white/50 shadow-lg hover:shadow-xl transition-all duration-300"
-                                            whileHover={{ scale: 1.02 }}
-                                        >
-                                            <label className="block font-bold text-gray-800 mb-2 text-sm">
-                                                {q.question}
-                                            </label>
+                                    {questions.map((q) => {
+                                        // Parse options if it's a string (JSON)
+                                        // Parse options if it's a string (JSON)
+                                        let parsedOptions = [];
+                                        if (Array.isArray(q.options)) {
+                                            parsedOptions = q.options;
+                                        } else if (typeof q.options === "string") {
+                                            try {
+                                                parsedOptions = JSON.parse(q.options);  // Converts the JSON string to an array
+                                            } catch (err) {
+                                                parsedOptions = q.options.split(",");  // Fallback if not valid JSON
+                                            }
+                                        }
 
+                                        return (
+                                            <motion.div
+                                                key={q.id}
+                                                className="p-3 border border-gray-200 rounded-2xl bg-white/50 shadow-lg hover:shadow-xl transition-all duration-300"
+                                                whileHover={{ scale: 1.02 }}
+                                            >
+                                                <label className="block font-bold text-gray-800 mb-2 text-sm">
+                                                    {q.question}
+                                                </label>
 
-                                            {(q.type === "multiple" || q.type === "checkbox") && (
-                                                <div className="space-y-2">
-                                                    {(Array.isArray(q.options)
-                                                        ? q.options
-                                                        : typeof q.options === "string"
-                                                            ? q.options.split(",")
-                                                            : []
-                                                    ).length > 0 ? (
-                                                        (Array.isArray(q.options)
-                                                            ? q.options
-                                                            : typeof q.options === "string"
-                                                                ? q.options.split(",")
-                                                                : []
-                                                        ).map((opt, index) => {
-                                                            // Determine label text safely
-                                                            let labelText = "";
-                                                            if (typeof opt === "string") labelText = opt;
-                                                            else if (opt && typeof opt === "object") labelText = opt.name || opt.label || opt.title || "";
-                                                            return (
-                                                                <label
-                                                                    key={`${q.id}-${q.type}-${index}`}
-                                                                    className="flex items-center gap-2 cursor-pointer hover:bg-red-50 p-1 rounded-lg transition-colors"
-                                                                >
-                                                                    <input
-                                                                        type={q.type === "multiple" ? "radio" : "checkbox"}
-                                                                        name={q.type === "multiple" ? q.id : undefined}
-                                                                        value={typeof opt === "string" ? opt : opt.id}
-                                                                        onChange={(e) => {
-                                                                            if (q.type === "multiple") {
-                                                                                setUserAnswers((prev) => ({
-                                                                                    ...prev,
-                                                                                    [q.id]: e.target.value,
-                                                                                }));
-                                                                            } else {
-                                                                                setUserAnswers((prev) => {
-                                                                                    const selected = prev[q.id] || [];
-                                                                                    if (e.target.checked) {
-                                                                                        return {
-                                                                                            ...prev,
-                                                                                            [q.id]: [...selected, e.target.value],
-                                                                                        };
-                                                                                    } else {
-                                                                                        return {
-                                                                                            ...prev,
-                                                                                            [q.id]: selected.filter((x) => x !== e.target.value),
-                                                                                        };
-                                                                                    }
-                                                                                });
-                                                                            }
-                                                                        }}
-                                                                        className="text-red-600 focus:ring-4 focus:ring-red-300"
-                                                                    />
-                                                                    <span className="text-gray-700 text-sm">
-                                                                        {typeof opt === 'string'
-                                                                            ? opt
-                                                                            : opt.option || opt.name || opt.label || "Option"}
-                                                                    </span>
-                                                                </label>
-                                                            );
-                                                        })
-                                                    ) : (
-                                                        <p className="text-gray-500 italic text-sm">No options available for this question.</p>
-                                                    )}
-                                                </div>
-                                            )}
+                                                {(q.type === "multiple" || q.type === "checkbox") && (
+                                                    <div className="space-y-2">
+                                                        {parsedOptions.length > 0 ? (
+                                                            parsedOptions.map((opt, index) => {
+                                                                const isObject = typeof opt === "object" && opt !== null;
+                                                                const optionText = isObject ? opt.option || opt.name || opt.label || "Option" : opt;
+                                                                const optionPrice = isObject ? parseFloat(opt.price || 0) : 0;
+                                                                const optionId = isObject ? opt.id || index : index;
 
+                                                                return (
+                                                                    <label
+                                                                        key={`${q.id}-${q.type}-${index}`}
+                                                                        className="flex items-center gap-2 cursor-pointer hover:bg-red-50 p-1 rounded-lg transition-colors"
+                                                                    >
+                                                                        <input
+                                                                            type={q.type === "multiple" ? "radio" : "checkbox"}
+                                                                            name={q.type === "multiple" ? q.id : undefined}
+                                                                            value={optionId}
+                                                                            onChange={(e) => {
+                                                                                if (q.type === "multiple") {
+                                                                                    setUserAnswers((prev) => ({
+                                                                                        ...prev,
+                                                                                        [q.id]: e.target.value,
+                                                                                    }));
+                                                                                    setQuestionPrices((prev) => ({
+                                                                                        ...prev,
+                                                                                        [q.id]: optionPrice,
+                                                                                    }));
+                                                                                } else {
+                                                                                    // Checkbox: add or subtract price
+                                                                                    setUserAnswers((prev) => {
+                                                                                        const selected = prev[q.id] || [];
+                                                                                        if (e.target.checked) {
+                                                                                            return {
+                                                                                                ...prev,
+                                                                                                [q.id]: [...selected, e.target.value],
+                                                                                            };
+                                                                                        } else {
+                                                                                            return {
+                                                                                                ...prev,
+                                                                                                [q.id]: selected.filter((x) => x !== e.target.value),
+                                                                                            };
+                                                                                        }
+                                                                                    });
+                                                                                    setQuestionPrices((prev) => {
+                                                                                        const current = prev[q.id] || 0;
+                                                                                        if (e.target.checked) {
+                                                                                            return {
+                                                                                                ...prev,
+                                                                                                [q.id]: current + optionPrice,
+                                                                                            };
+                                                                                        } else {
+                                                                                            return {
+                                                                                                ...prev,
+                                                                                                [q.id]: current - optionPrice,
+                                                                                            };
+                                                                                        }
+                                                                                    });
+                                                                                }
+                                                                            }}
+                                                                            className="text-red-600 focus:ring-4 focus:ring-red-300"
+                                                                        />
+                                                                        <span className="text-gray-700 text-sm">
+                                                                            {optionText} {optionPrice > 0 ? `(₹${optionPrice})` : ""}
+                                                                        </span>
+                                                                    </label>
+                                                                );
+                                                            })
+                                                        ) : (
+                                                            <p className="text-gray-500 italic text-sm">No options available for this question.</p>
+                                                        )}
+                                                    </div>
+                                                )}
 
-                                            {q.type === "text" && (
-                                                <input
-                                                    type="text"
-                                                    placeholder="Your answer..."
-                                                    onChange={(e) =>
-                                                        setUserAnswers((prev) => ({
-                                                            ...prev,
-                                                            [q.id]: e.target.value,
-                                                        }))
-                                                    }
-                                                    className="w-full border-2 border-gray-300 rounded-lg p-2 focus:ring-4 focus:ring-red-300 focus:border-red-500 transition-all shadow-sm bg-white/80"
-                                                />
-                                            )}
-                                        </motion.div>
-                                    ))}
+                                                {q.type === "text" && (
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Your answer..."
+                                                        onChange={(e) =>
+                                                            setUserAnswers((prev) => ({
+                                                                ...prev,
+                                                                [q.id]: e.target.value,
+                                                            }))
+                                                        }
+                                                        className="w-full border-2 border-gray-300 rounded-lg p-2 focus:ring-4 focus:ring-red-300 focus:border-red-500 transition-all shadow-sm bg-white/80"
+                                                    />
+                                                )}
+                                            </motion.div>
+                                        );
+                                    })}
 
                                     <motion.button
                                         type="submit"
@@ -774,3 +864,4 @@ export default function ServiceDetailsPage() {
         </div>
     );
 }
+

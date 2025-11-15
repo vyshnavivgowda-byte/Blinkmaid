@@ -7,11 +7,20 @@ import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import { FileDown, FileSpreadsheet } from "lucide-react";
+import { Eye } from "lucide-react";
 
 export default function EnquiriesDashboard() {
   const [enquiries, setEnquiries] = useState([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
+const [selectedEnquiry, setSelectedEnquiry] = useState(null);
+const [showModal, setShowModal] = useState(false);
+
+
+const handleView = (enq) => {
+  setSelectedEnquiry(enq);
+  setShowModal(true);
+};
 
   // 🔹 Fetch enquiries
   const fetchEnquiries = async () => {
@@ -219,14 +228,12 @@ export default function EnquiriesDashboard() {
                           {new Date(enq.created_at).toLocaleDateString()}
                         </td>
                         <td className="px-6 py-4 flex justify-center gap-3">
-                          <button
-                            className="text-red-600 hover:text-red-500"
-                            onClick={() =>
-                              alert(`View details for ${enq.full_name}`)
-                            }
-                          >
-                            <Mail size={18} />
-                          </button>
+<button
+  className="text-blue-600 hover:text-blue-500"
+  onClick={() => handleView(enq)}
+>
+  <Eye size={18} />
+</button>
                           <button
                             className="text-red-600 hover:text-red-500"
                             onClick={() => handleDelete(enq.id)}
@@ -241,6 +248,58 @@ export default function EnquiriesDashboard() {
               </table>
             )}
           </div>
+
+
+          {showModal && selectedEnquiry && (
+  <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-lg relative">
+
+      {/* Close button */}
+      <button
+        onClick={() => setShowModal(false)}
+        className="absolute top-3 right-3 text-gray-600 hover:text-red-600 text-xl"
+      >
+        ✕
+      </button>
+
+      <h2 className="text-2xl font-bold text-gray-900 mb-4">Enquiry Details</h2>
+
+      <div className="space-y-3 text-gray-800">
+
+        <p><strong>Name:</strong> {selectedEnquiry.full_name}</p>
+        <p><strong>Email:</strong> {selectedEnquiry.email}</p>
+        <p><strong>Phone:</strong> {selectedEnquiry.phone_number}</p>
+
+        <p><strong>Number of Workers:</strong> {selectedEnquiry.number_of_workers}</p>
+        <p><strong>Type of Work:</strong> {selectedEnquiry.type_of_work}</p>
+
+        {selectedEnquiry.preferred_contact_time && (
+          <p><strong>Preferred Contact Time:</strong> {selectedEnquiry.preferred_contact_time}</p>
+        )}
+
+        <p><strong>Message:</strong>  
+          <span className="block mt-1 bg-gray-100 p-3 rounded-lg">
+            {selectedEnquiry.message || "No message provided"}
+          </span>
+        </p>
+
+        <p><strong>Date:</strong>  
+          {new Date(selectedEnquiry.created_at).toLocaleString()}
+        </p>
+      </div>
+
+      <div className="mt-5 text-right">
+        <button
+          onClick={() => setShowModal(false)}
+          className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700"
+        >
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
         </section>
       </main>
     </div>

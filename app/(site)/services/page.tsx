@@ -13,23 +13,47 @@ import {
 import { supabase } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
 
+interface Service {
+  id: number;
+  name: string;
+  price: number;
+  description: string;
+}
+
 export default function ServicesPage() {
-  const [services, setServices] = useState([]);
+const [services, setServices] = useState<Service[]>([]);
   const router = useRouter();
 
+
+  
   useEffect(() => {
-    const fetchServices = async () => {
-      const { data, error } = await supabase
-        .from("services")
-        .select("id, name, price, description");
+  const fetchServices = async () => {
+    const { data, error } = await supabase
+      .from("services")
+      .select("id, name, price, description");
 
-      console.log("Fetched services:", data);
-      if (error) console.error("Error fetching services:", error);
-      else setServices(data);
-    };
+    if (error) {
+      console.error("Error fetching services:", error);
+      return;
+    }
 
-    fetchServices();
-  }, []);
+    // 🔥 REMOVE DUPLICATE SERVICE NAMES
+const unique: Service[] = [];
+    const seen = new Set();
+
+    data.forEach((service) => {
+      if (!seen.has(service.name)) {
+        seen.add(service.name);
+        unique.push(service);
+      }
+    });
+
+    console.log("Unique services:", unique);
+    setServices(unique);
+  };
+
+  fetchServices();
+}, []);
 
   // Static sections
   const whyChooseUs = [
