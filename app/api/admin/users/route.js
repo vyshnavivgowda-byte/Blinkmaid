@@ -23,7 +23,7 @@ export async function GET() {
     }
 
     return Response.json({ users: data?.users?.length || 0 });
-  } catch (err: any) {
+  } catch (err) {
     console.error("❌ Unexpected error:", err);
     return Response.json({ users: 0, error: "Server error" }, { status: 500 });
   }
