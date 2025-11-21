@@ -8,19 +8,24 @@ import jsPDF from "jspdf";
 import "jspdf-autotable";
 import { FileDown, FileSpreadsheet } from "lucide-react";
 import { Eye } from "lucide-react";
+import { ToastProvider } from "@/app/components/toast/ToastContext";
+import { useToast } from "@/app/components/toast/ToastContext";
 
 export default function EnquiriesDashboard() {
   const [enquiries, setEnquiries] = useState([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
-const [selectedEnquiry, setSelectedEnquiry] = useState(null);
-const [showModal, setShowModal] = useState(false);
+  const [selectedEnquiry, setSelectedEnquiry] = useState(null);
+  const [showModal, setShowModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteId, setDeleteId] = useState(null);
+  const { showToast } = useToast();
 
 
-const handleView = (enq) => {
-  setSelectedEnquiry(enq);
-  setShowModal(true);
-};
+  const handleView = (enq) => {
+    setSelectedEnquiry(enq);
+    setShowModal(true);
+  };
 
   // 🔹 Fetch enquiries
   const fetchEnquiries = async () => {
@@ -38,14 +43,22 @@ const handleView = (enq) => {
   }, []);
 
   // 🔹 Delete enquiry
-  const handleDelete = async (id) => {
-    if (!confirm("Are you sure you want to delete this enquiry?")) return;
-    const { error } = await supabase.from("enquiries").delete().eq("id", id);
+  const handleDeleteFinal = async () => {
+    const { error } = await supabase
+      .from("enquiries")
+      .delete()
+      .eq("id", deleteId);
+
+    setShowDeleteModal(false);
+
     if (!error) {
-      alert("✅ Enquiry deleted successfully!");
+      showToast("Enquiry deleted successfully!", "success");
       fetchEnquiries();
+    } else {
+      showToast("Failed to delete enquiry!", "error");
     }
   };
+
 
 
   // 🔹 Download as Excel
@@ -228,18 +241,22 @@ const handleView = (enq) => {
                           {new Date(enq.created_at).toLocaleDateString()}
                         </td>
                         <td className="px-6 py-4 flex justify-center gap-3">
-<button
-  className="text-blue-600 hover:text-blue-500"
-  onClick={() => handleView(enq)}
->
-  <Eye size={18} />
-</button>
+                          <button
+                            className="text-blue-600 hover:text-blue-500"
+                            onClick={() => handleView(enq)}
+                          >
+                            <Eye size={18} />
+                          </button>
                           <button
                             className="text-red-600 hover:text-red-500"
-                            onClick={() => handleDelete(enq.id)}
+                            onClick={() => {
+                              setDeleteId(enq.id);
+                              setShowDeleteModal(true);
+                            }}
                           >
                             <Trash2 size={18} />
                           </button>
+
                         </td>
                       </tr>
                     ))
@@ -249,56 +266,86 @@ const handleView = (enq) => {
             )}
           </div>
 
+          {showDeleteModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50">
+              <div className="bg-white p-6 rounded-xl shadow-xl w-full max-w-sm">
+
+                <h2 className="text-xl font-bold text-gray-900 mb-3">Delete Enquiry?</h2>
+                <p className="text-gray-600 mb-6">
+                  Are you sure you want to delete this enquiry? This action cannot be undone.
+                </p>
+
+                <div className="flex justify-end gap-3">
+                  <button
+                    className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100"
+                    onClick={() => setShowDeleteModal(false)}
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700"
+                    onClick={handleDeleteFinal}
+                  >
+                    Delete
+                  </button>
+
+                </div>
+
+              </div>
+            </div>
+          )}
+
 
           {showModal && selectedEnquiry && (
-  <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-    <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-lg relative">
+            <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-lg relative">
 
-      {/* Close button */}
-      <button
-        onClick={() => setShowModal(false)}
-        className="absolute top-3 right-3 text-gray-600 hover:text-red-600 text-xl"
-      >
-        ✕
-      </button>
+                {/* Close button */}
+                <button
+                  onClick={() => setShowModal(false)}
+                  className="absolute top-3 right-3 text-gray-600 hover:text-red-600 text-xl"
+                >
+                  ✕
+                </button>
 
-      <h2 className="text-2xl font-bold text-gray-900 mb-4">Enquiry Details</h2>
+                <h2 className="text-2xl font-bold text-gray-900 mb-4">Enquiry Details</h2>
 
-      <div className="space-y-3 text-gray-800">
+                <div className="space-y-3 text-gray-800">
 
-        <p><strong>Name:</strong> {selectedEnquiry.full_name}</p>
-        <p><strong>Email:</strong> {selectedEnquiry.email}</p>
-        <p><strong>Phone:</strong> {selectedEnquiry.phone_number}</p>
+                  <p><strong>Name:</strong> {selectedEnquiry.full_name}</p>
+                  <p><strong>Email:</strong> {selectedEnquiry.email}</p>
+                  <p><strong>Phone:</strong> {selectedEnquiry.phone_number}</p>
 
-        <p><strong>Number of Workers:</strong> {selectedEnquiry.number_of_workers}</p>
-        <p><strong>Type of Work:</strong> {selectedEnquiry.type_of_work}</p>
+                  <p><strong>Number of Workers:</strong> {selectedEnquiry.number_of_workers}</p>
+                  <p><strong>Type of Work:</strong> {selectedEnquiry.type_of_work}</p>
 
-        {selectedEnquiry.preferred_contact_time && (
-          <p><strong>Preferred Contact Time:</strong> {selectedEnquiry.preferred_contact_time}</p>
-        )}
+                  {selectedEnquiry.preferred_contact_time && (
+                    <p><strong>Preferred Contact Time:</strong> {selectedEnquiry.preferred_contact_time}</p>
+                  )}
 
-        <p><strong>Message:</strong>  
-          <span className="block mt-1 bg-gray-100 p-3 rounded-lg">
-            {selectedEnquiry.message || "No message provided"}
-          </span>
-        </p>
+                  <p><strong>Message:</strong>
+                    <span className="block mt-1 bg-gray-100 p-3 rounded-lg">
+                      {selectedEnquiry.message || "No message provided"}
+                    </span>
+                  </p>
 
-        <p><strong>Date:</strong>  
-          {new Date(selectedEnquiry.created_at).toLocaleString()}
-        </p>
-      </div>
+                  <p><strong>Date:</strong>
+                    {new Date(selectedEnquiry.created_at).toLocaleString()}
+                  </p>
+                </div>
 
-      <div className="mt-5 text-right">
-        <button
-          onClick={() => setShowModal(false)}
-          className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700"
-        >
-          Close
-        </button>
-      </div>
-    </div>
-  </div>
-)}
+                <div className="mt-5 text-right">
+                  <button
+                    onClick={() => setShowModal(false)}
+                    className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
         </section>
       </main>

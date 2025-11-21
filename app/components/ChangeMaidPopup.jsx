@@ -4,43 +4,43 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 
-export default function BigSubscriptionPopup() {
+export default function BigChangeMaidPopup() {
   const [show, setShow] = useState(false);
-  const [isSubscribed, setIsSubscribed] = useState(false);
+  const [shouldShowPopup, setShouldShowPopup] = useState(false);
 
+  // Step 1 — Check if user booked service & hasn't changed maid
   useEffect(() => {
-    const checkSubscription = async () => {
+    const checkBookingStatus = async () => {
       const { data: auth } = await supabase.auth.getUser();
       if (!auth?.user) return;
 
-      const email = auth.user.email;
+      const userId = auth.user.id;
 
-      const { data: sub } = await supabase
-        .from("subscribers")
+      const { data: booking } = await supabase
+        .from("bookings")
         .select("*")
-        .eq("email", email)
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
         .maybeSingle();
 
-      if (sub) {
-        setIsSubscribed(true);
-        setShow(false);
-      } else {
-        setIsSubscribed(false);
-      }
+      if (!booking) return;
+      if (booking.maid_changed === true) return;
+
+      setShouldShowPopup(true);
     };
 
-    checkSubscription();
+    checkBookingStatus();
   }, []);
 
+  // Step 2 — Popup animation time logic
   useEffect(() => {
-    if (!isSubscribed) {
+    if (shouldShowPopup) {
       setShow(true);
 
-      const hideTimer = setTimeout(() => setShow(false), 7000);
-
+      const hideTimer = setTimeout(() => setShow(false), 8000);
       const repeatTimer = setInterval(() => {
         setShow(true);
-        setTimeout(() => setShow(false), 7000);
+        setTimeout(() => setShow(false), 8000);
       }, 30000);
 
       return () => {
@@ -48,9 +48,9 @@ export default function BigSubscriptionPopup() {
         clearInterval(repeatTimer);
       };
     }
-  }, [isSubscribed]);
+  }, [shouldShowPopup]);
 
-  if (isSubscribed) return null;
+  if (!shouldShowPopup) return null;
 
   return (
     <AnimatePresence>
@@ -70,16 +70,16 @@ export default function BigSubscriptionPopup() {
               <X size={24} />
             </button>
 
-            <h2 className="text-3xl font-bold mb-4 text-red-600">🎁 Upgrade to Blinkmaid Premium!</h2>
+            <h2 className="text-3xl font-bold mb-4 text-black">🧹 Need a Maid Replacement?</h2>
             <p className="text-lg text-gray-700 mb-6">
-              Subscribe now and get <b>20% OFF</b> on all your bookings. Enjoy premium benefits, exclusive offers, and priority service.
+              You recently booked a service. Request a maid change anytime to ensure the best experience!
             </p>
 
             <button
-              onClick={() => window.location.href = "/subscribe"}
-              className="bg-red-600 text-white px-8 py-3 rounded-full font-semibold text-lg hover:bg-red-700 transition"
+              onClick={() => (window.location.href = "/change-maid")}
+              className="bg-blue-600 text-white px-8 py-3 rounded-full font-semibold text-lg hover:bg-blue-700 transition"
             >
-              Subscribe Now
+              Change Maid
             </button>
           </div>
         </motion.div>

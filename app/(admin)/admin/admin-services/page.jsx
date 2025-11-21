@@ -8,10 +8,12 @@ import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import { FileDown, FileSpreadsheet } from "lucide-react";
+import { useToast } from "@/app/components/toast/ToastContext";
 
 export default function AdminServices() {
   const [services, setServices] = useState([]);
   const [cities, setCities] = useState([]);
+  const { showToast } = useToast();
   const [selectedCity, setSelectedCity] = useState("");
   const [serviceName, setServiceName] = useState("");
   const [servicePrice, setServicePrice] = useState("");
@@ -30,6 +32,50 @@ export default function AdminServices() {
   const [viewSubServices, setViewSubServices] = useState([]);
   const [viewCity, setViewCity] = useState(null);
   const [selectedServiceView, setSelectedServiceView] = useState(false);
+  const [editingIndex, setEditingIndex] = useState(null);
+  const [editData, setEditData] = useState(null);
+  const [selectedSubServiceId, setSelectedSubServiceId] = useState("");
+  const [questionDetails, setQuestionDetails] = useState({
+    question: "",
+    type: "text",
+    options: []
+  });
+
+  // Validation error states
+  const [errors, setErrors] = useState({
+    selectedCity: "",
+    serviceName: "",
+    servicePrice: "",
+    serviceDescription: "",
+    selectedService: "",
+    subServiceName: "",
+    subServicePrice: "",
+    subServiceDescription: "",
+    question: "",
+    options: "",
+  });
+
+  // New states for delete modal
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteId, setDeleteId] = useState(null);
+
+  const handleAddQuestion = async () => {
+    const { error } = await supabase
+      .from("sub_service_questions")
+      .insert({
+        sub_service_id: selectedSubServiceId,
+        question: questionDetails.question,
+        type: questionType,
+        options: questionDetails.options
+      });
+
+    if (error) {
+      alert("Error adding question");
+    } else {
+      alert("Question added!");
+      setShowAddQuestionModal(false);
+    }
+  };
 
   const handleViewService = (id) => {
     const service = services.find((s) => s.id === id);
@@ -104,12 +150,53 @@ export default function AdminServices() {
     doc.save("services_data.pdf");
   };
 
+  // Validation functions
+  const validateServiceForm = () => {
+    const newErrors = {
+      selectedCity: "",
+      serviceName: "",
+      servicePrice: "",
+      serviceDescription: "",
+    };
+    if (!selectedCity) newErrors.selectedCity = "Please select a city.";
+    if (!serviceName.trim()) newErrors.serviceName = "Service name is required.";
+    if (!servicePrice || parseFloat(servicePrice) <= 0) newErrors.servicePrice = "Price must be greater than 0.";
+    const wordCount = serviceDescription.trim().split(/\s+/).filter(word => word).length;
+    if (wordCount <= 10) newErrors.serviceDescription = "Description must be more than 10 words.";
+    setErrors(prev => ({ ...prev, ...newErrors }));
+    return Object.values(newErrors).every(error => !error);
+  };
+
+  const validateSubServiceForm = () => {
+    const newErrors = {
+      selectedService: "",
+      subServiceName: "",
+      subServicePrice: "",
+      subServiceDescription: "",
+    };
+    if (!selectedService) newErrors.selectedService = "Please select a service.";
+    if (!subServiceName.trim()) newErrors.subServiceName = "Sub-service name is required.";
+    if (!subServicePrice || parseFloat(subServicePrice) <= 0) newErrors.subServicePrice = "Price must be greater than 0.";
+    const wordCount = subServiceDescription.trim().split(/\s+/).filter(word => word).length;
+    if (wordCount <= 10) newErrors.subServiceDescription = "Description must be more than 10 words.";
+    setErrors(prev => ({ ...prev, ...newErrors }));
+    return Object.values(newErrors).every(error => !error);
+  };
+
+  const validateQuestion = () => {
+    const newErrors = { question: "", options: "" };
+    if (!newQuestion.trim()) newErrors.question = "Question text is required.";
+    if (questionType === "multiple") {
+      const validOptions = options.filter(opt => opt.option.trim() && opt.price !== "" && !isNaN(parseFloat(opt.price)) && parseFloat(opt.price) >= 0);
+      if (validOptions.length < 2) newErrors.options = "At least 2 options are required, each with text and a price (0 or more).";
+    }
+    setErrors(prev => ({ ...prev, ...newErrors }));
+    return Object.values(newErrors).every(error => !error);
+  };
+
   // --- Add Service ---
   const addService = async () => {
-    if (!selectedCity || !serviceName || !servicePrice || !serviceDescription) {
-      alert("⚠️ Please fill all fields!");
-      return;
-    }
+    if (!validateServiceForm()) return;
     const { error } = await supabase.from("services").insert([
       {
         name: serviceName,
@@ -120,66 +207,66 @@ export default function AdminServices() {
     ]);
     if (error) console.error(error);
     else {
-      alert("✅ Service added successfully!");
+      showToast("Service added successfully!", "success");
       setServiceName("");
       setServicePrice("");
       setServiceDescription("");
+      setSelectedCity("");
+      setErrors(prev => ({ ...prev, selectedCity: "", serviceName: "", servicePrice: "", serviceDescription: "" }));
       fetchData();
     }
   };
 
   // --- Add Sub-Service ---
   const addSubService = async () => {
-  if (!selectedService || !subServiceName || !subServicePrice) {
-    alert("⚠️ Please fill all sub-service fields!");
-    return;
-  }
+    if (!validateSubServiceForm()) return;
 
-  // Insert sub-service
-  const { data: insertedSub, error: subErr } = await supabase
-    .from("sub_services")
-    .insert([
-      {
-        service_id: selectedService,
-        name: subServiceName,
-        price: parseFloat(subServicePrice),
-        description: subServiceDescription,
-      },
-    ])
-    .select()
-    .single();
+    // Insert sub-service
+    const { data: insertedSub, error: subErr } = await supabase
+      .from("sub_services")
+      .insert([
+        {
+          service_id: selectedService,
+          name: subServiceName,
+          price: parseFloat(subServicePrice),
+          description: subServiceDescription,
+        },
+      ])
+      .select()
+      .single();
 
-  if (subErr) {
-    console.error(subErr);
-    return alert("❌ Error adding sub-service");
-  }
-
-  // Insert related questions
-  if (questions.length > 0) {
-    const formattedQuestions = questions.map((q) => ({
-      sub_service_id: insertedSub.id,
-      question: q.text,
-      type: q.type,
-options: q.type === "multiple" ? q.options : null,
-    }));
-
-    const { error: qError } = await supabase
-      .from("sub_service_questions")
-      .insert(formattedQuestions);
-
-    if (qError) {
-      console.error(qError);
-      alert("⚠️ Sub-service added, but failed to save questions!");
+    if (subErr) {
+      console.error(subErr);
+      showToast("Error adding sub-service", "error");
     }
-  }
 
-  alert("✅ Sub-Service and questions saved successfully!");
-  setSubServiceName("");
-  setSubServicePrice("");
-  setSubServiceDescription("");
-  setQuestions([]);
-};
+    // Insert related questions
+    if (questions.length > 0) {
+      const formattedQuestions = questions.map((q) => ({
+        sub_service_id: insertedSub.id,
+        question: q.text,
+        type: q.type,
+        options: q.type === "multiple" ? q.options : null,
+      }));
 
+      const { error: qError } = await supabase
+        .from("sub_service_questions")
+        .insert(formattedQuestions);
+
+      if (qError) {
+        console.error(qError);
+        alert("⚠️ Sub-service added, but failed to save questions!");
+      }
+    }
+
+    showToast("Sub-Service added successfully!", "success");
+    setSubServiceName("");
+    setSubServicePrice("");
+    setSubServiceDescription("");
+    setSelectedService("");
+    setQuestions([]);
+    setErrors(prev => ({ ...prev, selectedService: "", subServiceName: "", subServicePrice: "", subServiceDescription: "" }));
+  };
 
   // Add new option
   const addOptionField = () => {
@@ -200,27 +287,75 @@ options: q.type === "multiple" ? q.options : null,
     setOptions(updated);
   };
 
+  // Open modal for adding or editing
+  const openQuestionModal = (index = null) => {
+    if (index !== null) {
+      // Editing
+      setEditingIndex(index);
+      setEditData(questions[index]);
+      setNewQuestion(questions[index].text);
+      setQuestionType(questions[index].type);
+      setOptions(questions[index].options.length > 0 ? questions[index].options : [{ option: "", price: "" }]);
+    } else {
+      // Adding new
+      setEditingIndex(null);
+      setEditData(null);
+      setNewQuestion("");
+      setQuestionType("text");
+      setOptions([{ option: "", price: "" }]);
+    }
+    setShowQuestionModal(true);
+  };
 
   const saveQuestion = () => {
-    if (!newQuestion.trim()) {
-      alert("Please enter a question");
-      return;
+    if (!validateQuestion()) return;
+
+    const newQ = {
+      text: newQuestion,
+      type: questionType,
+      options: questionType === "multiple" ? options.filter((opt) => opt.option.trim() !== "" && opt.price !== "" && !isNaN(parseFloat(opt.price)) && parseFloat(opt.price) >= 0) : [],
+    };
+
+    if (editingIndex !== null) {
+      // Update existing
+      const updatedQuestions = [...questions];
+      updatedQuestions[editingIndex] = newQ;
+      setQuestions(updatedQuestions);
+    } else {
+      // Add new
+      setQuestions([...questions, newQ]);
     }
-const newQ = {
-  text: newQuestion,
-  type: questionType,
-  options:
-    questionType === "multiple"
-      ? options.filter((opt) => opt.option.trim() !== "")
-      : [],
-};
 
-
-    setQuestions([...questions, newQ]);
+    // Reset
     setNewQuestion("");
     setQuestionType("text");
-setOptions([{ option: "", price: "" }]);
+    setOptions([{ option: "", price: "" }]);
+    setEditingIndex(null);
+    setEditData(null);
     setShowQuestionModal(false);
+    setErrors(prev => ({ ...prev, question: "", options: "" }));
+  };
+
+  // --- Delete Service (with confirmation modal and toast) ---
+  const handleDelete = (id) => {
+    setDeleteId(id);
+    setShowDeleteModal(true);
+  };
+
+  const handleDeleteFinal = async () => {
+    const { error } = await supabase
+      .from("services")
+      .delete()
+      .eq("id", deleteId);
+
+    setShowDeleteModal(false);
+
+    if (!error) {
+      showToast("Service deleted successfully!", "success");
+      fetchData();
+    } else {
+      showToast("Failed to delete service!", "error");
+    }
   };
 
   return (
@@ -236,114 +371,136 @@ setOptions([{ option: "", price: "" }]);
         </p>
       </header>
 
-      {/* Stats */}
-      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-8 px-8">
-        <StatsCard
-          icon={Building2}
-          title="Total Cities"
-          value={cities.length}
-          gradient="from-red-700 to-gray-900"
-        />
-        <StatsCard
-          icon={Wrench}
-          title="Total Services"
-          value={services.length}
-          gradient="from-red-700 to-gray-900"
-        />
-        <StatsCard
-          icon={Layers}
-          title="Total Sub-Services"
-          value={subServices.length}
-          gradient="from-red-700 to-gray-900"
-        />
+      <section className="grid grid-cols-1 sm:grid-cols-3 gap-6 mt-8 px-8">
+        {[
+          { icon: Building2, title: "Total Cities", value: cities.length },
+          { icon: Wrench, title: "Total Services", value: services.length },
+          { icon: Layers, title: "Total Sub-Services", value: subServices.length },
+        ].map((item, i) => {
+          const Icon = item.icon;
+
+          return (
+            <div
+              key={i}
+              className="relative group bg-gradient-to-br from-gray-100 to-gray-200 p-6 rounded-2xl shadow-md hover:shadow-xl hover:scale-[1.02] transition-all duration-300 border border-gray-300"
+            >
+              {/* Hover Red Glow Layer */}
+              <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-red-500 to-red-700 opacity-0 group-hover:opacity-10 transition duration-300"></div>
+
+              <div className="flex items-center justify-between">
+                {/* Icon Style Matching Previous Section */}
+                <div className="bg-red-100 p-3 rounded-xl text-red-600 shadow-sm group-hover:bg-red-200 transition">
+                  <Icon size={28} />
+                </div>
+
+                <p className="text-3xl font-bold text-gray-900">{item.value}</p>
+              </div>
+
+              <p className="mt-3 text-gray-700 font-semibold text-lg">{item.title}</p>
+            </div>
+          );
+        })}
       </section>
 
       {/* 🔹 Forms Section */}
       <main className="px-8 py-12 space-y-14">
-        {/* 🔧 Add New Service */}
-        <section className="bg-gradient-to-br from-white to-gray-50 border border-gray-200 shadow-md rounded-3xl p-10 hover:shadow-xl transition-all duration-300">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="bg-red-100 text-red-600 p-3 rounded-xl">
-              <Wrench size={24} />
-            </div>
-            <h3 className="text-3xl font-bold text-gray-900 tracking-tight">Add New Service</h3>
+        {/* 🟥 Add New Service – Block Card UI */}
+        <section className="bg-white border border-gray-200 rounded-3xl shadow-md p-8">
+          <div className="mb-8 border-l-4 border-red-600 pl-4">
+            <h3 className="text-2xl font-bold text-gray-900">Add New Service</h3>
+            <p className="text-gray-600">Fill the details below to add a new service.</p>
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div>
-              <label className="block text-gray-700 font-medium mb-2">Select City</label>
-              <select
-                value={selectedCity}
-                onChange={(e) => setSelectedCity(e.target.value)}
-                className="w-full p-3 rounded-xl border border-gray-300 bg-gray-50 focus:ring-2 focus:ring-red-500 outline-none"
-              >
-                <option value="">Choose City</option>
-                {cities.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
-            </div>
+            {[
+              {
+                label: "Select City",
+                type: "select",
+                value: selectedCity,
+                onChange: (e) => setSelectedCity(e.target.value),
+                options: cities,
+                error: errors.selectedCity,
+              },
+              {
+                label: "Service Name",
+                type: "text",
+                value: serviceName,
+                onChange: (e) =>setServiceName(e.target.value),
+                error: errors.serviceName,
+              },
+              {
+                label: "Price (₹)",
+                type: "number",
+                value: servicePrice,
+                onChange: (e) => setServicePrice(e.target.value),
+                error: errors.servicePrice,
+              },
+              {
+                label: "Description",
+                type: "text",
+                value: serviceDescription,
+                onChange: (e) => setServiceDescription(e.target.value),
+                error: errors.serviceDescription,
+              },
+            ].map((field, idx) => (
+              <div key={idx} className="flex flex-col">
+                <label className="text-gray-700 font-medium mb-2">{field.label}</label>
 
-            <div>
-              <label className="block text-gray-700 font-medium mb-2">Service Name</label>
-              <input
-                type="text"
-                placeholder="Enter Service Name"
-                value={serviceName}
-                onChange={(e) => setServiceName(e.target.value)}
-                className="w-full p-3 rounded-xl border border-gray-300 bg-gray-50 focus:ring-2 focus:ring-red-500 outline-none"
-              />
-            </div>
-
-            <div>
-              <label className="block text-gray-700 font-medium mb-2">Price (₹)</label>
-              <input
-                type="number"
-                placeholder="Enter Price"
-                value={servicePrice}
-                onChange={(e) => setServicePrice(e.target.value)}
-                className="w-full p-3 rounded-xl border border-gray-300 bg-gray-50 focus:ring-2 focus:ring-red-500 outline-none"
-              />
-            </div>
-
-            <div>
-              <label className="block text-gray-700 font-medium mb-2">Description</label>
-              <input
-                type="text"
-                placeholder="Enter Description"
-                value={serviceDescription}
-                onChange={(e) => setServiceDescription(e.target.value)}
-                className="w-full p-3 rounded-xl border border-gray-300 bg-gray-50 focus:ring-2 focus:ring-red-500 outline-none"
-              />
-            </div>
+                {field.type === "select" ? (
+                  <select
+                    value={field.value}
+                    onChange={field.onChange}
+                    className="p-3 rounded-xl bg-gray-50 border border-gray-300 focus:ring-2 focus:ring-red-500"
+                  >
+                    <option value="">Select</option>
+                    {field.options.map((o) => (
+                      <option key={o.id} value={o.id}>
+                        {o.name}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type={field.type}
+                    value={field.value}
+                    onChange={field.onChange}
+                    placeholder={`Enter ${field.label}`}
+                    className="p-3 rounded-xl bg-gray-50 border border-gray-300 focus:ring-2 focus:ring-red-500"
+                  />
+                )}
+                {field.error && <p className="text-red-500 text-sm mt-1">{field.error}</p>}
+              </div>
+            ))}
           </div>
 
-          <div className="text-right mt-8">
+          <div className="mt-8 text-right">
             <button
               onClick={addService}
-              className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white px-8 py-3 rounded-xl font-semibold shadow-md transition-all"
+              className="px-8 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl shadow"
             >
               + Add Service
             </button>
           </div>
         </section>
 
-        {/* 🧱 Add Sub-Service */}
-        <section className="bg-gradient-to-br from-white to-gray-50 border border-gray-200 shadow-md rounded-3xl p-10 hover:shadow-xl transition-all duration-300">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="bg-red-100 text-red-600 p-3 rounded-xl">
-              <Layers size={24} />
-            </div>
-            <h3 className="text-3xl font-bold text-gray-900 tracking-tight">Add Sub-Service</h3>
+        {/* 🟥 Add Sub-Service – Block Card UI */}
+        <section className="bg-white border border-gray-200 rounded-3xl shadow-md p-8">
+          {/* Header */}
+          <div className="mb-8 border-l-4 border-red-600 pl-4">
+            <h3 className="text-2xl font-bold text-gray-900">Add Sub-Service</h3>
+            <p className="text-gray-600">Fill the details below to create a sub-service.</p>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div>
-              <label className="block text-gray-700 font-medium mb-2">Select Service (with City)</label>
+          {/* Form Grid */}
+          <div className="flex gap-6 overflow-x-auto pb-4">
+
+            {/* Select Service */}
+            <div className="flex flex-col min-w-[250px]">
+              <label className="text-gray-700 font-medium mb-2">Select Service (with City)</label>
               <select
                 value={selectedService}
                 onChange={(e) => setSelectedService(e.target.value)}
-                className="w-full p-3 rounded-xl border border-gray-300 bg-gray-50 focus:ring-2 focus:ring-red-500 outline-none"
+                className="p-3 rounded-xl bg-gray-50 border border-gray-300 focus:ring-2 focus:ring-red-500"
               >
                 <option value="">Choose Service</option>
                 {services.map((s) => {
@@ -355,77 +512,120 @@ setOptions([{ option: "", price: "" }]);
                   );
                 })}
               </select>
+              {errors.selectedService && <p className="text-red-500 text-sm mt-1">{errors.selectedService}</p>}
             </div>
 
-            <div>
-              <label className="block text-gray-700 font-medium mb-2">Sub-Service Name</label>
+            {/* Sub-Service Name */}
+            <div className="flex flex-col min-w-[250px]">
+              <label className="text-gray-700 font-medium mb-2">Sub-Service Name</label>
               <input
                 type="text"
-                placeholder="Enter Sub-Service Name"
                 value={subServiceName}
                 onChange={(e) => setSubServiceName(e.target.value)}
-                className="w-full p-3 rounded-xl border border-gray-300 bg-gray-50 focus:ring-2 focus:ring-red-500 outline-none"
+                placeholder="Enter Sub-Service Name"
+                className="p-3 rounded-xl bg-gray-50 border border-gray-300 focus:ring-2 focus:ring-red-500"
               />
+              {errors.subServiceName && <p className="text-red-500 text-sm mt-1">{errors.subServiceName}</p>}
             </div>
 
-            <div>
-              <label className="block text-gray-700 font-medium mb-2">Price (₹)</label>
+            {/* Price */}
+            <div className="flex flex-col min-w-[200px]">
+              <label className="text-gray-700 font-medium mb-2">Price (₹)</label>
               <input
                 type="number"
-                placeholder="Enter Price"
                 value={subServicePrice}
                 onChange={(e) => setSubServicePrice(e.target.value)}
-                className="w-full p-3 rounded-xl border border-gray-300 bg-gray-50 focus:ring-2 focus:ring-red-500 outline-none"
+                placeholder="Enter Price"
+                className="p-3 rounded-xl bg-gray-50 border border-gray-300 focus:ring-2 focus:ring-red-500"
               />
+              {errors.subServicePrice && <p className="text-red-500 text-sm mt-1">{errors.subServicePrice}</p>}
             </div>
 
-            <div>
-              <label className="block text-gray-700 font-medium mb-2">Description</label>
+            {/* Description */}
+            <div className="flex flex-col min-w-[350px]">
+              <label className="text-gray-700 font-medium mb-2">Description</label>
               <input
                 type="text"
-                placeholder="Enter Description"
                 value={subServiceDescription}
                 onChange={(e) => setSubServiceDescription(e.target.value)}
-                className="w-full p-3 rounded-xl border border-gray-300 bg-gray-50 focus:ring-2 focus:ring-red-500 outline-none"
+                placeholder="Enter Description"
+                className="p-3 rounded-xl bg-gray-50 border border-gray-300 focus:ring-2 focus:ring-red-500"
               />
+              {errors.subServiceDescription && <p className="text-red-500 text-sm mt-1">{errors.subServiceDescription}</p>}
+            </div>
+
+          </div>
+
+
+          {/* 📝 Questions Section */}
+          <div className="mt-12 bg-white border border-gray-200 rounded-3xl p-8 shadow-md">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h4 className="text-2xl font-bold text-gray-900">Questions</h4>
+                <p className="text-gray-600 text-sm">Add custom questions for users to answer.</p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => openQuestionModal()}
+                className="border border-red-600 text-red-600 px-6 py-3 rounded-xl font-semibold hover:bg-red-600 hover:text-white transition-all shadow-sm"
+              >
+                + Add Question
+              </button>
+            </div>
+
+            {/* Questions List */}
+            <div className="space-y-4">
+              {questions.length === 0 ? (
+                <p className="text-gray-500 text-center py-6 border border-dashed border-gray-300 rounded-xl">
+                  No questions added yet.
+                </p>
+              ) : (
+                questions.map((q, i) => (
+                  <div
+                    key={i}
+                    className="flex items-center justify-between bg-gray-50 border border-gray-200 p-4 rounded-xl shadow-sm"
+                  >
+                    <div>
+                      <p className="text-gray-900 font-medium">{q.text}</p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {q.type === "multiple" ? "Multiple Choice" : "Text Answer"}
+                      </p>
+                    </div>
+
+                    {/* Edit + Remove Buttons */}
+                    <div className="flex items-center gap-3">
+                      {/* EDIT BUTTON */}
+                      <button
+                        onClick={() => openQuestionModal(i)}
+                        className="border border-blue-600 text-blue-600 px-4 py-2 rounded-lg font-medium hover:bg-blue-600 hover:text-white transition-all"
+                      >
+                        Edit
+                      </button>
+
+                      {/* REMOVE BUTTON */}
+                      <button
+                        onClick={() => {
+                          const updated = questions.filter((_, idx) => idx !== i);
+                          setQuestions(updated);
+                        }}
+                        className="border border-red-600 text-red-600 px-4 py-2 rounded-lg font-medium hover:bg-red-600 hover:text-white transition-all"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
 
-          {/* 🧩 Question Section */}
-          <div className="mt-8">
-            <label className="block text-gray-800 font-semibold mb-3">
-              Questions ({questions.length})
-            </label>
-
-            <button
-              type="button"
-              onClick={() => setShowQuestionModal(true)}
-              className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 px-5 py-2 rounded-xl text-white font-semibold shadow-md transition-all"
-            >
-              + Add Question
-            </button>
-
-            <ul className="mt-5 space-y-2 text-sm">
-              {questions.map((q, i) => (
-                <li
-                  key={i}
-                  className="bg-gray-100 border border-gray-200 p-3 rounded-xl flex justify-between items-center"
-                >
-                  <span>
-                    {q.text}{" "}
-                    <span className="text-xs text-gray-500">
-                      ({q.type === "multiple" ? "Multiple Choice" : "Text"})
-                    </span>
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
-
+          {/* Submit */}
           <div className="text-right mt-10">
             <button
               onClick={addSubService}
-              className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white px-8 py-3 rounded-xl font-semibold shadow-md transition-all"
+              className="px-10 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl shadow"
             >
               + Add Sub-Service
             </button>
@@ -438,13 +638,23 @@ setOptions([{ option: "", price: "" }]);
         <div className="fixed inset-0 flex justify-center items-center bg-black/60 z-50">
           <div className="bg-white text-gray-900 rounded-2xl shadow-2xl w-full max-w-md p-6 relative">
             <button
-              onClick={() => setShowQuestionModal(false)}
+              onClick={() => {
+                setShowQuestionModal(false);
+                setEditingIndex(null);
+                setEditData(null);
+                setNewQuestion("");
+                setQuestionType("text");
+                setOptions([{ option: "", price: "" }]);
+                setErrors(prev => ({ ...prev, question: "", options: "" }));
+              }}
               className="absolute top-4 right-4 text-gray-600 hover:text-black"
             >
               <X />
             </button>
 
-            <h3 className="text-2xl font-bold mb-4">Add Question</h3>
+            <h3 className="text-2xl font-bold mb-4">
+              {editingIndex !== null ? "Edit Question" : "Add Question"}
+            </h3>
 
             {/* Question Text */}
             <input
@@ -452,15 +662,16 @@ setOptions([{ option: "", price: "" }]);
               placeholder="Enter question text"
               value={newQuestion}
               onChange={(e) => setNewQuestion(e.target.value)}
-              className="w-full p-3 border border-gray-300 rounded-xl mb-4"
+              className="w-full p-3 border border-gray-300 rounded-xl mb-4 focus:ring-2 focus:ring-red-500 outline-none"
             />
+            {errors.question && <p className="text-red-500 text-sm mb-4">{errors.question}</p>}
 
             {/* Question Type */}
             <label className="block mb-2 text-sm font-semibold">Question Type</label>
             <select
               value={questionType}
               onChange={(e) => setQuestionType(e.target.value)}
-              className="w-full p-3 border border-gray-300 rounded-xl mb-4"
+              className="w-full p-3 border border-gray-300 rounded-xl mb-4 focus:ring-2 focus:ring-red-500 outline-none"
             >
               <option value="text">Text Answer</option>
               <option value="multiple">Multiple Choice (with prices)</option>
@@ -477,14 +688,14 @@ setOptions([{ option: "", price: "" }]);
                       placeholder={`Option ${i + 1}`}
                       value={opt.option}
                       onChange={(e) => handleOptionChange(i, e.target.value)}
-                      className="w-2/3 p-2 border border-gray-300 rounded-lg"
+                      className="w-2/3 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 outline-none"
                     />
                     <input
                       type="number"
                       placeholder="Price"
                       value={opt.price}
                       onChange={(e) => handleOptionPriceChange(i, e.target.value)}
-                      className="w-1/3 p-2 border border-gray-300 rounded-lg"
+                      className="w-1/3 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 outline-none"
                     />
                   </div>
                 ))}
@@ -492,45 +703,26 @@ setOptions([{ option: "", price: "" }]);
                 <button
                   type="button"
                   onClick={() => setOptions([...options, { option: "", price: "" }])}
-                  className="text-green-700 text-sm font-semibold mt-1"
+                  className="text-green-700 text-sm font-semibold mt-1 hover:text-green-800"
                 >
                   + Add Option
                 </button>
+                {errors.options && <p className="text-red-500 text-sm mt-2">{errors.options}</p>}
               </div>
             )}
 
             <button
-              onClick={() => {
-                if (!newQuestion.trim()) {
-                  alert("Please enter a question");
-                  return;
-                }
-
-                const newQ = {
-                  text: newQuestion,
-                  type: questionType,
-                  options:
-                    questionType === "multiple"
-                      ? options.filter((opt) => opt.option.trim() !== "")
-                      : [],
-                };
-                setQuestions([...questions, newQ]);
-                setNewQuestion("");
-                setQuestionType("text");
-                setOptions([{ option: "", price: "" }]);
-                setShowQuestionModal(false);
-              }}
-              className="mt-6 w-full bg-red-600 hover:bg-red-700 text-white py-3 rounded-xl"
+              onClick={saveQuestion}
+              className="mt-6 w-full bg-red-600 hover:bg-red-700 text-white py-3 rounded-xl font-semibold transition-all"
             >
-              Save Question
+              {editingIndex !== null ? "Update Question" : "Save Question"}
             </button>
           </div>
         </div>
       )}
 
-
       {/* 🧾 Service List Table */}
-      <section className="px-8 mt-6 mb-10"> {/* Added bottom margin with mb-10 */}
+      <section className="px-8 mt-6 mb-10">
         <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6">
           {/* 🔹 Table Header with Title + Export Buttons */}
           <div className="flex flex-col sm:flex-row justify-between items-center bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200 px-8 py-4 rounded-t-2xl">
@@ -566,8 +758,6 @@ setOptions([{ option: "", price: "" }]);
             </div>
           </div>
 
-
-
           {/* Table */}
           <div className="overflow-x-auto rounded-xl border border-gray-200 bg-gray-50">
             <table className="min-w-full text-sm text-gray-800">
@@ -586,7 +776,7 @@ setOptions([{ option: "", price: "" }]);
                 {services.length === 0 ? (
                   <tr>
                     <td colSpan="6" className="py-8 text-center text-gray-500">
-                      <Eye className="inline-block w-5 h-5 mr-2 text-gray-400" /> {/* 👁️ replaced Search with Eye */}
+                      <Eye className="inline-block w-5 h-5 mr-2 text-gray-400" />
                       No services found
                     </td>
                   </tr>
@@ -612,7 +802,7 @@ setOptions([{ option: "", price: "" }]);
                             className="text-blue-600 hover:text-blue-500"
                             onClick={() => handleViewService(service.id)}
                           >
-                            <Eye size={18} /> {/* 👁️ replaced Search with Eye */}
+                            <Eye size={18} />
                           </button>
                           <button
                             className="text-red-600 hover:text-red-500"
@@ -672,6 +862,33 @@ setOptions([{ option: "", price: "" }]);
         </div>
       )}
 
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-xl shadow-xl w-full max-w-sm">
+            <h2 className="text-xl font-bold text-gray-900 mb-3">DeleteService?</h2>
+            <p className="text-gray-600 mb-6">
+              Are you sure you want to delete this service? This action cannot be undone.
+            </p>
+
+            <div className="flex justify-end gap-3">
+              <button
+                className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100"
+                onClick={() => setShowDeleteModal(false)}
+              >
+                Cancel
+              </button>
+
+              <button
+                className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700"
+                onClick={handleDeleteFinal}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

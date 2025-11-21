@@ -1,16 +1,24 @@
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-import SubscriptionPopup from "../components/SubscriptionPopup";  // ✅ added
+import BookServicePopup from "../components/BookServicePopup";
+import ChangeMaidPopup from "../components/ChangeMaidPopup";
+import SubscriptionPopup from "../components/SubscriptionPopup";
+import { Toaster } from "react-hot-toast";
 
 export default function SiteLayout({ children }) {
   return (
-    <div className="bg-gray-50 text-gray-900 flex flex-col min-h-screen">
+    <div>
       <Navbar />
-      <main className="flex-grow pt-20">{children}</main>
+      <main className="pt-20">{children}</main>
       <Footer />
 
-      {/* ✅ Global subscription popup */}
+      {/* Popups */}
       <SubscriptionPopup />
+      <BookServicePopup />
+      <ChangeMaidPopup />
+
+      {/* Toasts (placed at the bottom to avoid overlap) */}
+      <Toaster position="bottom-center" />
     </div>
   );
 }

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Phone, Mail, MapPin, Clock } from "lucide-react";
+import { supabase } from "@/lib/supabaseClient";
 
 const Contact = () => {
   const [formData, setFormData] = useState({
@@ -20,14 +21,32 @@ const Contact = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    console.log("Form submitted:", formData);
+
+const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  e.preventDefault();
+
+  try {
+    const { data, error } = await supabase.from("contacts").insert([
+      {
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        message: formData.message,
+      },
+    ]);
+
+    if (error) throw error;
 
     setSuccessMsg("Thank you for your message! We will get back to you shortly.");
+    setFormData({ name: "", email: "", phone: "", message: "" });
 
     setTimeout(() => setSuccessMsg(""), 5000);
-  };
+  } catch (err) {
+    console.error(err);
+    setSuccessMsg("Oops! Something went wrong. Please try again.");
+  }
+};
+
 
   const contactDetails = [
     {

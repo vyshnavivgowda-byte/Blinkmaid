@@ -1,5 +1,6 @@
 import "./globals.css";
 import { ReactNode } from "react";
+import { ToastProvider } from "@/app/components/toast/ToastContext";
 
 export const metadata = {
   title: "BlinkMaid",
@@ -13,7 +14,11 @@ interface RootLayoutProps {
 export default function RootLayout({ children }: RootLayoutProps) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <ToastProvider>
+          {children}
+        </ToastProvider>
+      </body>
     </html>
   );
 }

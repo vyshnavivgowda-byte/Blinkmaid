@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { ToastProvider } from "@/app/components/toast/ToastContext";
+import { useToast } from "@/app/components/toast/ToastContext";
 import { supabase } from "@/lib/supabaseClient";
 import {
   Users,
@@ -14,11 +16,29 @@ import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import { FileDown, FileSpreadsheet } from "lucide-react";
+import { XCircle } from "lucide-react";
 
 export default function MaidDashboard() {
   const [maids, setMaids] = useState([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [selectedMaidId, setSelectedMaidId] = useState(null);
+  const { showToast } = useToast();
+
+  // 🔹 Filter (Name + Address + Work Types)
+  const filteredMaids = maids.filter((maid) => {
+    const searchText = search.toLowerCase();
+
+    const nameMatch = maid.name?.toLowerCase().includes(searchText);
+    const addressMatch = maid.address?.toLowerCase().includes(searchText);
+    const workTypesMatch = maid.work_types
+      ?.join(" ")
+      .toLowerCase()
+      .includes(searchText);
+
+    return nameMatch || addressMatch || workTypesMatch;
+  });
 
   // 🔹 Fetch maids
   const fetchMaids = async () => {
@@ -46,9 +66,7 @@ export default function MaidDashboard() {
   };
 
   // 🔹 Filter
-  const filteredMaids = maids.filter((maid) =>
-    [maid.name, maid.address].join(" ").toLowerCase().includes(search.toLowerCase())
-  );
+
 
   // 🔹 Download as Excel
   const handleDownloadExcel = () => {
@@ -158,34 +176,59 @@ export default function MaidDashboard() {
               <Users className="text-red-600 w-6 h-6" />
               Maid List
             </h2>
-          <div className="flex flex-col sm:flex-row gap-3 items-center">
-  <div className="relative">
-    <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
-    <input
-      type="text"
-      placeholder="Search by name or address..."
-      className="border border-gray-300 rounded-xl pl-10 pr-4 py-2 bg-gray-100 text-gray-900 focus:ring-2 focus:ring-red-400 outline-none w-full sm:w-80"
-      value={search}
-      onChange={(e) => setSearch(e.target.value)}
-    />
-  </div>
 
-  {/* Download Buttons */}
-  <div className="flex gap-3">
-    <button
-      onClick={handleDownloadExcel}
-      className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition"
-    >
-      <FileSpreadsheet size={18} /> Excel
-    </button>
-    <button
-      onClick={handleDownloadPDF}
-      className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition"
-    >
-      <FileDown size={18} /> PDF
-    </button>
-  </div>
-</div>
+            <div className="flex flex-col sm:flex-row gap-3 items-center">
+
+              {/* Search Input */}
+              <div className="relative">
+                <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
+                <input
+                  type="text"
+                  placeholder="Search by name or address..."
+                  className="border border-gray-300 rounded-xl pl-10 pr-4 py-2 bg-gray-100 text-gray-900 focus:ring-2 focus:ring-red-400 outline-none w-full sm:w-80"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+              </div>
+
+              {/* 🔥 Location Filter */}
+              <select
+                className="border border-gray-300 rounded-xl py-2 px-4 bg-gray-100 text-gray-900 focus:ring-2 focus:ring-red-400 outline-none"
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (value === "all") {
+                    setSearch(""); // show all maids
+                  } else {
+                    setSearch(value); // filter by location
+                  }
+                }}
+              >
+                <option value="all">All Locations</option>
+                {[...new Set(maids.map((m) => m.address))].map((location, index) => (
+                  <option key={index} value={location}>
+                    {location}
+                  </option>
+                ))}
+              </select>
+
+              {/* Download Buttons */}
+              <div className="flex gap-3">
+                <button
+                  onClick={handleDownloadExcel}
+                  className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition"
+                >
+                  <FileSpreadsheet size={18} /> Excel
+                </button>
+                <button
+                  onClick={handleDownloadPDF}
+                  className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition"
+                >
+                  <FileDown size={18} /> PDF
+                </button>
+              </div>
+
+            </div>
+
 
           </div>
 
@@ -231,7 +274,10 @@ export default function MaidDashboard() {
                         <td className="px-6 py-4 flex justify-center gap-3">
                           <button
                             className="text-red-600 hover:text-red-500"
-                            onClick={() => handleDelete(maid.id)}
+                            onClick={() => {
+                              setSelectedMaidId(maid.id);
+                              setShowDeleteModal(true);
+                            }}
                           >
                             <Trash2 size={18} />
                           </button>
@@ -243,6 +289,50 @@ export default function MaidDashboard() {
               </table>
             )}
           </div>
+
+          {/* 🔴 Delete Confirmation Modal */}
+          {showDeleteModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50">
+              <div className="bg-white p-6 rounded-xl shadow-xl w-full max-w-sm">
+
+                <h2 className="text-xl font-bold text-gray-900 mb-3">Delete Maid?</h2>
+                <p className="text-gray-600 mb-6">
+                  Are you sure you want to delete this maid? This action cannot be undone.
+                </p>
+
+                <div className="flex justify-end gap-3">
+                  <button
+                    className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100"
+                    onClick={() => setShowDeleteModal(false)}
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700"
+                    onClick={async () => {
+                      const { error } = await supabase
+                        .from("maids")
+                        .delete()
+                        .eq("id", selectedMaidId);
+
+                      if (!error) {
+                        showToast("Maid deleted successfully!", "success");
+                        fetchMaids();
+                      }
+                      setShowDeleteModal(false);
+                    }}
+                  >
+                    Delete
+                  </button>
+                </div>
+
+              </div>
+            </div>
+          )}
+
+
+
         </section>
       </main>
     </div>

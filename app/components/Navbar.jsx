@@ -5,7 +5,7 @@ import { HiMenu, HiX } from "react-icons/hi";
 import { Eye, EyeOff, X, Loader2, User, LogOut } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation"; // Import for active tab detection
+import { usePathname } from "next/navigation";
 import logo from "@/public/logo.jpg";
 import { supabase } from "../../lib/supabaseClient";
 
@@ -18,7 +18,7 @@ const menuItems = [
 ];
 
 export default function Navbar() {
-  const pathname = usePathname(); // Get current path for active tab
+  const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [isRegister, setIsRegister] = useState(false);
@@ -40,7 +40,6 @@ export default function Navbar() {
   });
 
   // Check user authentication on mount and listen for changes
-  // ✅ Check user authentication on mount and listen for changes
   useEffect(() => {
     const getUser = async () => {
       const { data, error } = await supabase.auth.getSession();
@@ -60,7 +59,6 @@ export default function Navbar() {
       listener?.subscription.unsubscribe();
     };
   }, []);
-
 
   // Close modal when clicking outside
   useEffect(() => {
@@ -111,8 +109,7 @@ export default function Navbar() {
     alert("Registration successful! Check your email for verification.");
     resetForm();
     setIsRegister(false);
-    setModalOpen(false); // ✅ close modal after signup
-
+    setModalOpen(false);
   };
 
   // Handle login
@@ -183,7 +180,7 @@ export default function Navbar() {
   const toggleDropdown = () => setDropdownOpen(!dropdownOpen);
 
   return (
-    <header className="bg-gradient-to-r from-black to-red-900 shadow-md fixed top-0 left-0 w-full z-50">
+    <header className="bg-white shadow-md fixed top-0 left-0 w-full z-50">
       <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
         {/* Logo */}
         <Link
@@ -193,8 +190,8 @@ export default function Navbar() {
           <Image
             src={logo}
             alt="Blinkmaid Logo"
-            width={130}
-            height={100}
+            width={180}
+            height={200}
             className="rounded-full"
           />
         </Link>
@@ -205,13 +202,18 @@ export default function Navbar() {
             <Link
               key={path}
               href={path}
-              className={`font-medium transition-colors px-3 py-2 rounded-lg ${pathname === path
-                  ? "bg-red-600 text-white shadow-lg"
-                  : "text-gray-200 hover:text-red-400 hover:bg-red-100/20"
-                }`}
+              className={`
+    font-medium transition-colors px-3 py-2 rounded-lg
+    ${pathname === path
+                  ? "text-white bg-gradient-to-r from-red-700 to-gray-900 shadow-lg"
+                  : "text-black hover:text-white hover:bg-gradient-to-r hover:from-red-700 hover:to-gray-900"
+                }
+  `}
             >
               {label}
             </Link>
+
+
           ))}
         </nav>
 
@@ -221,7 +223,13 @@ export default function Navbar() {
             <div className="relative">
               <button
                 onClick={toggleDropdown}
-                className="flex items-center space-x-2 px-3 py-2 bg-gray-800 rounded-full hover:bg-red-700 transition-colors text-white"
+                className="
+    flex items-center space-x-2 px-3 py-2 
+    bg-gradient-to-r from-red-700 to-gray-900
+    rounded-full 
+    text-white 
+    transition-all
+  "
               >
                 <User size={20} />
                 <span className="hidden sm:block font-medium">
@@ -250,12 +258,20 @@ export default function Navbar() {
           ) : (
             <button
               onClick={() => setModalOpen(true)}
-              className="px-6 py-3 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors"
+              className="
+    px-6 py-3 
+    bg-gradient-to-r from-red-700 to-gray-900
+    text-white 
+    rounded-xl 
+    font-semibold 
+    transition-all
+  "
             >
               Login
             </button>
-          )}
 
+
+          )}
         </div>
 
         {/* Mobile Menu Button */}
@@ -276,14 +292,15 @@ export default function Navbar() {
               <Link
                 key={path}
                 href={path}
-                className={`font-medium transition-colors px-3 py-2 rounded-lg ${pathname === path
-                    ? "bg-red-600 text-white shadow-lg"
-                    : "text-gray-200 hover:text-red-400 hover:bg-red-100/20"
-                  }`}
-                onClick={() => setMenuOpen(false)}
+                className={`
+    font-medium transition-colors px-3 py-2 rounded-lg
+    ${pathname === path ? "bg-red-600 text-white shadow-lg" : "text-black"}
+    hover:text-white hover:bg-gradient-to-r hover:from-red-700 hover:to-gray-900
+  `}
               >
                 {label}
               </Link>
+
             ))}
           </nav>
         </div>
@@ -409,8 +426,8 @@ export default function Navbar() {
                 type="submit"
                 disabled={loading}
                 className={`col-span-2 w-full py-3 rounded-xl text-white font-semibold transition-all duration-200 flex items-center justify-center ${loading
-                    ? "bg-gray-400 cursor-not-allowed"
-                    : "bg-gradient-to-r from-black to-red-600 hover:from-red-600 hover:to-black shadow-lg"
+                  ? "bg-gray-400 cursor-not-allowed"
+                  : "bg-gradient-to-r from-black to-red-600 hover:from-red-600 hover:to-black shadow-lg"
                   }`}
               >
                 {loading ? (
@@ -516,8 +533,8 @@ export default function Navbar() {
               }}
               disabled={loading}
               className={`w-full py-3 rounded-xl text-white font-semibold flex items-center justify-center transition-all duration-200 ${loading
-                  ? "bg-gray-400 cursor-not-allowed"
-                  : "bg-gradient-to-r from-red-600 to-red-800 hover:from-red-700 hover:to-red-900 shadow-lg"
+                ? "bg-gray-400 cursor-not-allowed"
+                : "bg-gradient-to-r from-red-600 to-red-800 hover:from-red-700 hover:to-red-900 shadow-lg"
                 }`}
             >
               {loading ? (

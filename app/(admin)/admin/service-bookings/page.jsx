@@ -14,11 +14,19 @@ import {
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
+import { useToast } from "@/app/components/toast/ToastContext";
 
 export default function ServiceBookings() {
   const [bookings, setBookings] = useState([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
+
+  // Delete Popup State
+  const [showDeletePopup, setShowDeletePopup] = useState(false);
+  const [deleteId, setDeleteId] = useState(null);
+
+  // Toast
+  const { showToast } = useToast();
 
   // 🔹 Fetch all bookings
   const fetchBookings = async () => {
@@ -27,6 +35,7 @@ export default function ServiceBookings() {
       .from("bookings")
       .select("*")
       .order("created_at", { ascending: false });
+
     if (!error) setBookings(data || []);
     setLoading(false);
   };
@@ -35,14 +44,25 @@ export default function ServiceBookings() {
     fetchBookings();
   }, []);
 
+  // 🔹 Open popup
+  const confirmDelete = (id) => {
+    setDeleteId(id);
+    setShowDeletePopup(true);
+  };
+
   // 🔹 Delete booking
-  const handleDelete = async (id) => {
-    if (!confirm("Are you sure you want to delete this booking?")) return;
-    const { error } = await supabase.from("bookings").delete().eq("id", id);
+  const handleDelete = async () => {
+    const { error } = await supabase.from("bookings").delete().eq("id", deleteId);
+
     if (!error) {
-      alert("✅ Booking deleted successfully!");
+      showToast("Booking deleted successfully!", "success");
       fetchBookings();
+    } else {
+      showToast("Failed to delete booking!", "error");
     }
+
+    setShowDeletePopup(false);
+    setDeleteId(null);
   };
 
   // 🔹 Filter bookings
@@ -71,18 +91,22 @@ export default function ServiceBookings() {
         "Total Price": `₹${b.total_price}`,
         "Discount Applied": b.discount_applied ? "Yes" : "No",
         "Final Amount": `₹${b.final_amount}`,
-        "Date": new Date(b.created_at).toLocaleString(),
+        Date: new Date(b.created_at).toLocaleString(),
       }))
     );
+
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Bookings");
     XLSX.writeFile(workbook, "service_bookings.xlsx");
+
+    showToast("Excel downloaded!", "success");
   };
 
   // 🔹 Download PDF
   const handleDownloadPDF = () => {
     const doc = new jsPDF();
     doc.text("Service Bookings", 14, 15);
+
     const tableColumn = [
       "Service",
       "Sub-Service",
@@ -92,6 +116,7 @@ export default function ServiceBookings() {
       "Final Amount",
       "Date",
     ];
+
     const tableRows = bookings.map((b) => [
       b.service_name,
       b.sub_service_name,
@@ -110,6 +135,7 @@ export default function ServiceBookings() {
     });
 
     doc.save("service_bookings.pdf");
+    showToast("PDF downloaded!", "success");
   };
 
   // 🔹 Stats
@@ -232,7 +258,9 @@ export default function ServiceBookings() {
                   ) : (
                     filteredBookings.map((b) => (
                       <tr key={b.id} className="border-b hover:bg-gray-50 transition">
-                        <td className="px-6 py-4 font-medium text-gray-900">{b.service_name}</td>
+                        <td className="px-6 py-4 font-medium text-gray-900">
+                          {b.service_name}
+                        </td>
                         <td className="px-6 py-4">{b.sub_service_name || "—"}</td>
                         <td className="px-6 py-4">{b.city}</td>
                         <td className="px-6 py-4">₹{b.total_price}</td>
@@ -244,7 +272,7 @@ export default function ServiceBookings() {
                         <td className="px-6 py-4 flex justify-center">
                           <button
                             className="text-red-600 hover:text-red-500"
-                            onClick={() => handleDelete(b.id)}
+                            onClick={() => confirmDelete(b.id)}
                           >
                             <Trash2 size={18} />
                           </button>
@@ -257,6 +285,34 @@ export default function ServiceBookings() {
             )}
           </div>
         </section>
+
+        {/* Delete Popup */}
+        {showDeletePopup && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-white p-6 rounded-xl shadow-xl w-[350px] animate-fadeIn">
+              <h2 className="text-xl font-semibold text-gray-900">Delete Booking?</h2>
+              <p className="mt-2 text-gray-600">
+                Are you sure you want to delete this booking? This action cannot be undone.
+              </p>
+
+              <div className="flex justify-end gap-3 mt-6">
+                <button
+                  onClick={() => setShowDeletePopup(false)}
+                  className="px-4 py-2 bg-gray-300 rounded-lg hover:bg-gray-400"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  onClick={handleDelete}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );

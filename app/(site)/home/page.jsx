@@ -2,6 +2,7 @@
 
 import React, { useRef, useState } from "react";
 import { motion } from "framer-motion";
+import toast from "react-hot-toast";
 import { supabase } from "@/lib/supabaseClient";
 import {
     HiOutlineHome,
@@ -19,6 +20,8 @@ import {
 import { ChevronLeft, ChevronRight, Star } from "lucide-react";
 import Image from "next/image";
 import useEmblaCarousel from "embla-carousel-react";
+import { useToast } from "@/app/components/toast/ToastContext";
+
 
 // ✅ Background image for hero (changed from video to image since it's a JPG)
 const bgImage = "/bg_pic.jpg"; // Hero section background image
@@ -106,6 +109,7 @@ function CardContent({ children }) {
 
 // ✅ Main Home Page
 export default function Home() {
+    const { showToast } = useToast();
     const [imageError, setImageError] = useState(false);
     const [video2Error, setVideo2Error] = useState(false);
 
@@ -336,7 +340,7 @@ export default function Home() {
             </section>
 
             {/* Subscription Section */}
-<section className="py-24 px-8 md:px-16 lg:px-32 bg-gray-200">
+            <section className="py-24 px-8 md:px-16 lg:px-32 bg-gray-200">
                 <motion.div
                     className="text-center mb-16"
                     initial={{ opacity: 0, y: 20 }}
@@ -483,11 +487,14 @@ export default function Home() {
                         try {
                             const { error } = await supabase.from("enquiries").insert([formData]);
                             if (error) throw error;
-                            alert("✅ Enquiry submitted successfully!");
+
+                            toast.success("Enquiry submitted successfully!");
                             e.target.reset();
-                        } catch (error) {
-                            alert("❌ Failed to submit enquiry: " + error.message);
+                        } catch (err) {
+                            toast.error("Failed to submit enquiry");
                         }
+
+
                     }}
                 >
                     {/* Type of Work & No. of Workers (side by side) */}
