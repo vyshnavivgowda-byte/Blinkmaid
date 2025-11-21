@@ -1,10 +1,14 @@
 import { createClient } from "@supabase/supabase-js";
 
-const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+// ❌ Do NOT use NEXT_PUBLIC inside server-side routes
+// const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+
+// ✅ Use server environment variable instead
+const url = process.env.SUPABASE_URL;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!url) {
-  throw new Error("❌ ENV ERROR: NEXT_PUBLIC_SUPABASE_URL is missing!");
+  throw new Error("❌ ENV ERROR: SUPABASE_URL is missing!");
 }
 
 if (!serviceRoleKey) {
