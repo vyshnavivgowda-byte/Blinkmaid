@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react"; // ✅ Added useEffect
 import { motion } from "framer-motion";
 import toast from "react-hot-toast";
 import { supabase } from "@/lib/supabaseClient";
@@ -22,17 +22,9 @@ import Image from "next/image";
 import useEmblaCarousel from "embla-carousel-react";
 import { useToast } from "@/app/components/toast/ToastContext";
 
+// --- Existing Carousel & Card Components (omitted for brevity) ---
+// (Keep Carousel, CarouselContent, CarouselItem, CarouselButton, Card, CardContent as they are)
 
-// ✅ Background image for hero (changed from video to image since it's a JPG)
-const bgImage = "/bg_pic.jpg"; // Hero section background image
-
-// ✅ Background video for second section
-const bgClip2 = "/videos/clip.mp4"; // Second video section
-
-// ✅ Fallback background image (ensure you have this in public/images/)
-const fallbackBg = "/images/fallback-bg.jpg"; // Add a fallback image in public/images/
-
-// ✅ Inline Carousel Components
 function Carousel({ children, className = "" }) {
     const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true });
     const [canScrollPrev, setCanScrollPrev] = useState(false);
@@ -48,6 +40,8 @@ function Carousel({ children, className = "" }) {
         if (!emblaApi) return;
         emblaApi.on("select", updateButtons);
         updateButtons();
+        // Clean up event listener on unmount
+        return () => emblaApi.off("select", updateButtons);
     }, [emblaApi]);
 
     const scrollPrev = () => emblaApi && emblaApi.scrollPrev();
@@ -94,7 +88,6 @@ function CarouselButton({ direction, onClick, disabled }) {
     );
 }
 
-// ✅ Card Component
 function Card({ children, className = "" }) {
     return (
         <div className={`bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition ${className}`}>
@@ -109,9 +102,49 @@ function CardContent({ children }) {
 
 // ✅ Main Home Page
 export default function Home() {
-    const { showToast } = useToast();
     const [imageError, setImageError] = useState(false);
     const [video2Error, setVideo2Error] = useState(false);
+    const [testimonials, setTestimonials] = useState([]); // ✅ New state for testimonials
+    const [loadingTestimonials, setLoadingTestimonials] = useState(true); // ✅ New state for loading
+
+    // --- Data Fetching Logic (New) ---
+    useEffect(() => {
+        const fetchTestimonials = async () => {
+            try {
+                // Fetch reviews that have status 'active' and order by creation date
+                const { data, error } = await supabase
+                    .from("website_reviews")
+                    .select("id, name, rating, review") // Select only necessary columns
+                    .eq("status", "active") // Filter for active reviews
+                    .order("created_at", { ascending: false }); // Order by newest first
+
+                if (error) {
+                    console.error("Error fetching testimonials:", error);
+                    toast.error("Failed to load reviews.");
+                    return;
+                }
+                
+                // Map the fetched data to match a simpler structure if needed, or use as-is.
+                // Since the table columns map nicely to what's needed, we can use the data directly.
+                const processedTestimonials = data.map(item => ({
+                    name: item.name,
+                    role: "Verified Client", // Using a default role as the schema doesn't include one
+                    message: item.review, // Mapping 'review' to 'message'
+                    rating: item.rating,
+                }));
+
+                setTestimonials(processedTestimonials);
+            } catch (error) {
+                console.error("Unexpected error in fetchTestimonials:", error);
+                toast.error("An unexpected error occurred while loading reviews.");
+            } finally {
+                setLoadingTestimonials(false);
+            }
+        };
+
+        fetchTestimonials();
+    }, []); // Run once on component mount
+    // ---------------------------------
 
     const services = [
         {
@@ -146,30 +179,23 @@ export default function Home() {
         },
     ];
 
-    const testimonials = [
-        {
-            name: "John Doe",
-            role: "Homeowner",
-            message: "BlinkMaid transformed my home! Their service is top-notch and reliable.",
-            rating: 5,
-        },
-        {
-            name: "Jane Smith",
-            role: "Office Manager",
-            message: "Professional and efficient. Highly recommend for office cleaning.",
-            rating: 5,
-        },
-        {
-            name: "Mike Johnson",
-            role: "Car Enthusiast",
-            message: "My car has never looked better. Great mobile service!",
-            rating: 5,
-        },
-    ];
+    // Removed the old hardcoded 'testimonials' array
+    // const hardcodedTestimonials = [...]
+
+
+    // ✅ Background image for hero (changed from video to image since it's a JPG)
+    const bgImage = "/bg_pic.jpg"; // Hero section background image
+
+    // ✅ Background video for second section
+    const bgClip2 = "/videos/clip.mp4"; // Second video section
+
+    // ✅ Fallback background image (ensure you have this in public/images/)
+    const fallbackBg = "/images/fallback-bg.jpg"; // Add a fallback image in public/images/
 
     return (
         <div className="relative min-h-screen bg-gray-100 text-gray-900">
-            {/* 🎥 Hero Background Video */}
+            {/* 🎥 Hero Background Video (... existing code ... ) */}
+            {/* ... (Hero section remains the same) ... */}
             <div className="absolute top-0 left-0 w-full h-[65vh] md:h-[75vh] z-0 overflow-hidden">
                 {!imageError ? (
                     <video
@@ -194,7 +220,7 @@ export default function Home() {
                 <div className="absolute inset-0 bg-gradient-to-r from-black/70 to-red-900/60"></div>
             </div>
 
-            {/* Hero Text Section */}
+            {/* Hero Text Section (.... existing code ....) */}
             <section className="relative flex flex-col justify-center items-center text-center h-[65vh] md:h-[75vh] px-6 z-10">
                 <motion.h1
                     className="text-5xl md:text-6xl font-extrabold text-white drop-shadow-lg"
@@ -224,7 +250,7 @@ export default function Home() {
             </section>
 
 
-            {/* Services Section */}
+            {/* Services Section (.... existing code ....) */}
             <section id="services" className="relative bg-white py-20">
                 <div className="max-w-6xl mx-auto px-6">
                     <motion.h2
@@ -236,7 +262,6 @@ export default function Home() {
                         Our <span className="text-red-600">Services</span>
                     </motion.h2>
 
-                    {/* Carousel without arrows */}
                     <Carousel className="relative">
                         <CarouselContent>
                             {services.map((s, i) => (
@@ -259,12 +284,11 @@ export default function Home() {
                                 </CarouselItem>
                             ))}
                         </CarouselContent>
-                        {/* Removed <CarouselPrevious /> and <CarouselNext /> */}
                     </Carousel>
                 </div>
             </section>
 
-            {/* Testimonials Section */}
+            {/* Testimonials Section (UPDATED) */}
             <section className="relative bg-gradient-to-r from-black to-red-900 py-20 text-white">
                 <div className="max-w-6xl mx-auto px-6">
                     <motion.h2
@@ -275,34 +299,49 @@ export default function Home() {
                     >
                         What Our <span className="text-red-400">Clients Say</span>
                     </motion.h2>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                        {testimonials.map((t, i) => (
-                            <motion.div
-                                key={i}
-                                initial={{ opacity: 0, y: 20 }}
-                                whileInView={{ opacity: 1, y: 0 }}
-                                transition={{ delay: i * 0.2, duration: 0.5 }}
-                            >
-                                <Card className="bg-white/10 backdrop-blur-sm border border-white/20">
-                                    <CardContent>
-                                        <div className="flex items-center mb-4">
-                                            {[...Array(t.rating)].map((_, idx) => (
-                                                <Star key={idx} size={20} className="text-yellow-400 fill-current" />
-                                            ))}
-                                        </div>
-                                        <p className="text-gray-100 mb-4">"{t.message}"</p>
-                                        <div>
-                                            <p className="font-semibold">{t.name}</p>
-                                            <p className="text-sm text-gray-300">{t.role}</p>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            </motion.div>
-                        ))}
-                    </div>
+
+                    {loadingTestimonials && (
+                        <p className="text-center text-xl text-gray-300">Loading reviews...</p>
+                    )}
+
+                    {!loadingTestimonials && testimonials.length === 0 && (
+                        <p className="text-center text-xl text-gray-300">No active reviews to display yet.</p>
+                    )}
+
+                    {!loadingTestimonials && testimonials.length > 0 && (
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                            {testimonials.map((t, i) => ( // ✅ Now mapping over the fetched 'testimonials' state
+                                <motion.div
+                                    key={i}
+                                    initial={{ opacity: 0, y: 20 }}
+                                    whileInView={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: i * 0.2, duration: 0.5 }}
+                                >
+                                    <Card className="bg-white/10 backdrop-blur-sm border border-white/20">
+                                        <CardContent>
+                                            <div className="flex items-center mb-4">
+                                                {/* Ensure rating is between 1 and 5 before mapping */}
+                                                {[...Array(Math.min(5, Math.max(1, t.rating)))].map((_, idx) => (
+                                                    <Star key={idx} size={20} className="text-yellow-400 fill-current" />
+                                                ))}
+                                            </div>
+                                            <p className="text-gray-100 mb-4">"{t.message}"</p>
+                                            <div>
+                                                <p className="font-semibold">{t.name}</p>
+                                                {/* Using the role from the mapped object (default: "Verified Client") */}
+                                                <p className="text-sm text-gray-300">{t.role}</p> 
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                </motion.div>
+                            ))}
+                        </div>
+                    )}
                 </div>
             </section>
 
+            {/* ... (Rest of the component remains the same) ... */}
+            
             {/* About Us Section */}
             <section className="relative bg-white py-20">
                 <div className="max-w-6xl mx-auto px-6">
@@ -349,59 +388,61 @@ export default function Home() {
                 >
                     <h2 className="text-5xl font-bold text-gray-800 mb-4">Subscription Plans</h2>
                     <p className="text-gray-600 text-lg max-w-2xl mx-auto">
-                        Save more with our 3, 6, or 12-month subscriptions — enjoy up to{" "}
-                        <span className="text-red-600 font-bold">20% OFF</span> your selected service!
+                        Save more with our 3, 6, or 12-month subscriptions — enjoy exclusive
+                        features and discounted monthly salary!
                     </p>
                 </motion.div>
+
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
                     {[
                         {
                             duration: "3 Months",
-                            discount: "15%",
-                            basePrice: 1000,
+                            price: 5999,
                         },
                         {
                             duration: "6 Months",
-                            discount: "18%",
-                            basePrice: 1000,
+                            price: 11999,
                         },
                         {
-                            duration: "1 Year",
-                            discount: "20%",
-                            basePrice: 1000,
+                            duration: "12 Months",
+                            price: 19999,
                         },
-                    ].map((plan, index) => {
-                        const discountedPrice = plan.basePrice - plan.basePrice * (parseInt(plan.discount) / 100);
-                        return (
-                            <motion.div
-                                key={index}
-                                className="bg-gradient-to-br from-gray-50 to-white rounded-3xl p-10 shadow-lg hover:shadow-2xl hover:-translate-y-4 transition-all duration-500 text-center border border-red-200 relative overflow-hidden"
-                                initial={{ opacity: 0, scale: 0.9 }}
-                                whileInView={{ opacity: 1, scale: 1 }}
-                                transition={{ delay: index * 0.15, duration: 0.6 }}
-                            >
-                                <div className="absolute inset-0 bg-gradient-to-br from-red-50 to-transparent opacity-0 hover:opacity-100 transition-opacity duration-500"></div>
-                                <h3 className="text-3xl font-bold text-gray-800 mb-4 relative z-10">{plan.duration}</h3>
-                                <p className="text-gray-600 mb-4 text-base relative z-10">
-                                    Save <span className="text-red-600 font-bold">{plan.discount}</span> on your selected service
-                                </p>
-                                <div className="flex items-center justify-center gap-3 mb-6 relative z-10">
-                                    <p className="text-xl line-through text-gray-400">₹{plan.basePrice.toFixed(2)}</p>
-                                    <p className="text-4xl font-extrabold text-red-600">₹{discountedPrice.toFixed(2)}</p>
-                                </div>
-                                <ul className="text-gray-600 text-sm space-y-3 mb-8 relative z-10">
-                                    <li className="flex items-center justify-center gap-2"><HiOutlineCheckCircle className="text-green-500" /> Includes selected cleaning service</li>
-                                    <li className="flex items-center justify-center gap-2"><HiOutlineCheckCircle className="text-green-500" /> Priority customer support</li>
-                                    <li className="flex items-center justify-center gap-2"><HiOutlineCheckCircle className="text-green-500" /> Flexible scheduling</li>
-                                </ul>
-                                <button className="bg-red-600 text-white px-8 py-3 rounded-full hover:bg-red-700 transition-all duration-300 transform hover:scale-105 shadow-lg relative z-10">
-                                    Subscribe Now
-                                </button>
-                            </motion.div>
-                        );
-                    })}
+                    ].map((plan, index) => (
+                        <motion.div
+                            key={index}
+                            className="bg-gradient-to-br from-gray-50 to-white rounded-3xl p-10 shadow-lg hover:shadow-2xl hover:-translate-y-4 transition-all duration-500 text-center border border-red-200 relative overflow-hidden"
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            whileInView={{ opacity: 1, scale: 1 }}
+                            transition={{ delay: index * 0.15, duration: 0.6 }}
+                        >
+                            <div className="absolute inset-0 bg-gradient-to-br from-red-50 to-transparent opacity-0 hover:opacity-100 transition-opacity duration-500"></div>
+
+                            <h3 className="text-3xl font-bold text-gray-800 mb-4 relative z-10">{plan.duration}</h3>
+
+                            <p className="text-gray-600 mb-4 text-base relative z-10">
+                                Flat Price — No Hidden Charges
+                            </p>
+
+                            <div className="flex items-center justify-center gap-3 mb-6 relative z-10">
+                                <p className="text-4xl font-extrabold text-red-600">₹{plan.price.toLocaleString()}</p>
+                            </div>
+
+                            <ul className="text-gray-600 text-sm space-y-3 mb-8 relative z-10">
+                                <li className="flex items-center justify-center gap-2">
+                                    <HiOutlineCheckCircle className="text-green-500" /> 1 Free Replacement
+                                </li>
+                                <li className="flex items-center justify-center gap-2">
+                                    <HiOutlineCheckCircle className="text-green-500" /> 10% Monthly Salary Discount
+                                </li>
+                                <li className="flex items-center justify-center gap-2">
+                                    <HiOutlineCheckCircle className="text-green-500" /> 24/7 Customer Support
+                                </li>
+                            </ul>
+                        </motion.div>
+                    ))}
                 </div>
             </section>
+
 
 
 

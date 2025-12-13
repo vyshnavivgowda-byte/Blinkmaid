@@ -21,39 +21,54 @@ interface Service {
 }
 
 export default function ServicesPage() {
-const [services, setServices] = useState<Service[]>([]);
+  const [services, setServices] = useState<Service[]>([]);
   const router = useRouter();
 
 
-  
+
   useEffect(() => {
-  const fetchServices = async () => {
-    const { data, error } = await supabase
-      .from("services")
-      .select("id, name, price, description");
+    const fetchServices = async () => {
+      const { data, error } = await supabase
+        .from("services")
+        .select("id, name, price, description");
 
-    if (error) {
-      console.error("Error fetching services:", error);
-      return;
-    }
-
-    // 🔥 REMOVE DUPLICATE SERVICE NAMES
-const unique: Service[] = [];
-    const seen = new Set();
-
-    data.forEach((service) => {
-      if (!seen.has(service.name)) {
-        seen.add(service.name);
-        unique.push(service);
+      if (error) {
+        console.error("Error fetching services:", error);
+        return;
       }
-    });
 
-    console.log("Unique services:", unique);
-    setServices(unique);
-  };
+      const unique: Service[] = [];
+      const seen = new Set();
 
-  fetchServices();
-}, []);
+      data.forEach((service) => {
+        if (!seen.has(service.name)) {
+          seen.add(service.name);
+          unique.push(service);
+        }
+      });
+
+      setServices(unique);
+    };
+
+    const fetchReviews = async () => {
+      const { data, error } = await supabase
+        .from("website_reviews")
+        .select("id, name, rating, review")
+        .eq("status", "active") // Only fetch active reviews
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("Error fetching reviews:", error);
+        return;
+      }
+
+      setReviews(data);
+    };
+
+    fetchServices();
+    fetchReviews();
+  }, []);
+
 
   // Static sections
   const whyChooseUs = [
@@ -103,6 +118,7 @@ const unique: Service[] = [];
       rating: 5,
     },
   ];
+  const [reviews, setReviews] = useState<{ id: number; name: string; rating: number; review: string }[]>([]);
 
   const faqs = [
     {
@@ -258,33 +274,32 @@ const unique: Service[] = [];
           What Our <span className="text-red-400">Clients Say</span>
         </motion.h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
-          {testimonials.map((t, index) => (
-            <motion.div
-              key={index}
-              className="bg-white/10 backdrop-blur-lg rounded-3xl p-8 border border-white/20 shadow-2xl"
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.2, duration: 0.6 }}
-            >
-              <div className="flex items-center mb-6">
-                <div>
-                  <p className="font-bold text-lg">{t.name}</p>
-                  <p className="text-gray-300 text-sm">{t.role}</p>
-                  <p className="text-gray-400 text-xs mt-1">{t.description}</p>
+          {reviews.length === 0 ? (
+            <p className="text-gray-300 text-center">No reviews available yet.</p>
+          ) : (
+            reviews.map((t, index) => (
+              <motion.div
+                key={t.id}
+                className="bg-white/10 backdrop-blur-lg rounded-3xl p-8 border border-white/20 shadow-2xl"
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.2, duration: 0.6 }}
+              >
+                <div className="flex items-center mb-6">
+                  <div>
+                    <p className="font-bold text-lg">{t.name}</p>
+                    <p className="text-gray-400 text-xs mt-1">{t.review}</p>
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-center mb-4">
-                {[...Array(t.rating)].map((_, i) => (
-                  <Star
-                    key={i}
-                    size={20}
-                    className="text-yellow-400 fill-current"
-                  />
-                ))}
-              </div>
-              <p className="text-gray-100">"{t.message}"</p>
-            </motion.div>
-          ))}
+                <div className="flex items-center mb-4">
+                  {[...Array(t.rating)].map((_, i) => (
+                    <Star key={i} size={20} className="text-yellow-400 fill-current" />
+                  ))}
+                </div>
+              </motion.div>
+            ))
+          )}
+
         </div>
       </section>
 

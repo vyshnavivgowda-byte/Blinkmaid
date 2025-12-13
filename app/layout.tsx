@@ -1,6 +1,7 @@
 import "./globals.css";
 import { ReactNode } from "react";
 import { ToastProvider } from "@/app/components/toast/ToastContext";
+import Script from "next/script";
 
 export const metadata = {
   title: "BlinkMaid",
@@ -15,9 +16,14 @@ export default function RootLayout({ children }: RootLayoutProps) {
   return (
     <html lang="en">
       <body>
-        <ToastProvider>
-          {children}
-        </ToastProvider>
+        <Script
+          src="https://checkout.razorpay.com/v1/checkout.js"
+          strategy="beforeInteractive"
+        />
+     <ToastProvider>
+  {children}
+</ToastProvider>
+
       </body>
     </html>
   );

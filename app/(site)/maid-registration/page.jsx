@@ -9,7 +9,14 @@ export default function MaidRegistrationForm() {
   const [formData, setFormData] = useState({
     name: "",
     number: "",
-    address: "",
+    address: {
+      house: "",
+      street: "",
+      area: "",
+      landmark: "",
+      city: "",
+      pincode: "",
+    },
     experience: "",
     salary: "",
     workTypes: [],
@@ -37,6 +44,21 @@ export default function MaidRegistrationForm() {
     }
   };
 
+  const handleAddressChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      address: {
+        ...prev.address,
+        [name]: value,
+      },
+    }));
+
+    if (errors[name]) {
+      setErrors({ ...errors, [name]: "" });
+    }
+  };
+
   const validateForm = () => {
     const newErrors = {};
 
@@ -48,7 +70,16 @@ export default function MaidRegistrationForm() {
       newErrors.number = "Enter a valid 10-digit Indian mobile number.";
     }
 
-    if (!formData.address.trim()) newErrors.address = "Address is required.";
+    if (!formData.address.house.trim()) newErrors.house = "House/Flat number required.";
+    if (!formData.address.street.trim()) newErrors.street = "Street required.";
+    if (!formData.address.area.trim()) newErrors.area = "Area required.";
+    if (!formData.address.city.trim()) newErrors.city = "City required.";
+
+    if (!formData.address.pincode.trim()) {
+      newErrors.pincode = "Pincode is required.";
+    } else if (!/^\d{6}$/.test(formData.address.pincode)) {
+      newErrors.pincode = "Enter a valid 6-digit pincode.";
+    }
 
     if (!formData.experience) newErrors.experience = "Experience is required.";
 
@@ -90,11 +121,19 @@ export default function MaidRegistrationForm() {
       setFormData({
         name: "",
         number: "",
-        address: "",
+        address: {
+          house: "",
+          street: "",
+          area: "",
+          landmark: "",
+          city: "",
+          pincode: "",
+        },
         experience: "",
         salary: "",
         workTypes: [],
       });
+
     }
 
     setLoading(false);
@@ -203,20 +242,92 @@ export default function MaidRegistrationForm() {
             </div>
 
             {/* Address */}
+            {/* Address Section */}
             <div className="relative">
-              <label className="block text-gray-700 font-semibold mb-2 flex items-center">
-                <MapPin className="w-5 h-5 mr-2 text-red-600" /> Address
+              <label className="block text-gray-700 font-semibold mb-4 flex items-center">
+                <MapPin className="w-5 h-5 mr-2 text-red-600" /> Address Details
               </label>
-              <textarea
-                name="address"
-                value={formData.address}
-                onChange={handleChange}
-                rows="3"
-                className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-red-400 focus:border-red-400 outline-none transition-all duration-300 shadow-sm hover:shadow-md resize-none"
-                placeholder="Enter full address"
-              />
-              {errors.address && <p className="text-red-500 text-sm mt-1">{errors.address}</p>}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* House */}
+                <div>
+                  <input
+                    type="text"
+                    name="house"
+                    placeholder="House / Flat No"
+                    value={formData.address.house}
+                    onChange={handleAddressChange}
+                    className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-red-400 focus:border-red-400"
+                  />
+                  {errors.house && <p className="text-red-500 text-sm mt-1">{errors.house}</p>}
+                </div>
+
+                {/* Street */}
+                <div>
+                  <input
+                    type="text"
+                    name="street"
+                    placeholder="Street"
+                    value={formData.address.street}
+                    onChange={handleAddressChange}
+                    className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-red-400 focus:border-red-400"
+                  />
+                  {errors.street && <p className="text-red-500 text-sm mt-1">{errors.street}</p>}
+                </div>
+
+                {/* Area */}
+                <div>
+                  <input
+                    type="text"
+                    name="area"
+                    placeholder="Area / Locality"
+                    value={formData.address.area}
+                    onChange={handleAddressChange}
+                    className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-red-400 focus:border-red-400"
+                  />
+                  {errors.area && <p className="text-red-500 text-sm mt-1">{errors.area}</p>}
+                </div>
+
+                {/* Landmark */}
+                <div>
+                  <input
+                    type="text"
+                    name="landmark"
+                    placeholder="Landmark (Optional)"
+                    value={formData.address.landmark}
+                    onChange={handleAddressChange}
+                    className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-red-400 focus:border-red-400"
+                  />
+                </div>
+
+                {/* City */}
+                <div>
+                  <input
+                    type="text"
+                    name="city"
+                    placeholder="City"
+                    value={formData.address.city}
+                    onChange={handleAddressChange}
+                    className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-red-400 focus:border-red-400"
+                  />
+                  {errors.city && <p className="text-red-500 text-sm mt-1">{errors.city}</p>}
+                </div>
+
+                {/* Pincode */}
+                <div>
+                  <input
+                    type="text"
+                    name="pincode"
+                    placeholder="Pincode"
+                    value={formData.address.pincode}
+                    onChange={handleAddressChange}
+                    className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-red-400 focus:border-red-400"
+                  />
+                  {errors.pincode && <p className="text-red-500 text-sm mt-1">{errors.pincode}</p>}
+                </div>
+              </div>
             </div>
+
 
             {/* Experience & Salary */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
