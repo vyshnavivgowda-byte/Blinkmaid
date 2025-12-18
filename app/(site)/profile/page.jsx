@@ -4,25 +4,13 @@ import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  User,
-  Mail,
-  Phone,
-  MapPin,
-  Home,
-  Edit,
-  Save,
-  X,
-  Bell,
-  Calendar,
-  CreditCard,
-  CheckCircle,
-  XCircle,
-  Camera,
-  RefreshCw,
+  User, Mail, Phone, MapPin, Home, Edit, Save, X, Bell,
+  Calendar, CreditCard, CheckCircle, XCircle, RefreshCw,
+  ShieldCheck, ArrowRight, Star
 } from "lucide-react";
 
+// Constants
 const RAZORPAY_KEY_ID = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_test_RpvE2nM5XUTYN7";
-const API_BASE_URL = "/api";
 
 const useRazorpayScript = () => {
   useEffect(() => {
@@ -30,16 +18,14 @@ const useRazorpayScript = () => {
     script.src = "https://checkout.razorpay.com/v1/checkout.js";
     script.async = true;
     document.body.appendChild(script);
-
-    return () => {
-      document.body.removeChild(script);
-    };
+    return () => { document.body.removeChild(script); };
   }, []);
 };
 
 export default function ProfilePage() {
   useRazorpayScript();
 
+  // State Management
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -49,6 +35,8 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false);
   const [bookings, setBookings] = useState([]);
   const [loadingBookings, setLoadingBookings] = useState(false);
+  
+  // Modal & Payment States
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [newMaid, setNewMaid] = useState("");
@@ -70,19 +58,16 @@ export default function ProfilePage() {
 
   const fetchProfile = useCallback(async () => {
     setLoading(true);
-    setError(null);
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-    const { data, error: authError } = await supabase.auth.getUser();
-
-    if (authError || !data?.user) {
-      setError("Unable to load profile. Please log in.");
+    if (authError || !user) {
+      setError("Please log in to view your profile.");
       setLoading(false);
       return;
     }
 
-    const user = data.user;
-
     const profileData = {
+      id: user.id,
       name: user.user_metadata?.name || "Not Provided",
       phone: user.user_metadata?.phone || "Not Provided",
       address: user.user_metadata?.address || "Not Provided",
@@ -92,19 +77,13 @@ export default function ProfilePage() {
       subscription: null,
     };
 
-    const { data: subscriptions, error: subError } = await supabase
+    const { data: subscriptions } = await supabase
       .from("subscribers")
       .select("*")
       .eq("email", profileData.email)
       .order("subscribed_at", { ascending: false });
 
-    if (subError) {
-      console.error("Error fetching subscription:", subError);
-    } else {
-      if (subscriptions && subscriptions.length > 0) {
-        profileData.subscription = subscriptions[0];
-      }
-    }
+    if (subscriptions?.length > 0) profileData.subscription = subscriptions[0];
 
     setUserData(profileData);
     setEditData(profileData);
@@ -112,18 +91,10 @@ export default function ProfilePage() {
     setLoading(false);
   }, [fetchBookings]);
 
-  useEffect(() => {
-    fetchProfile();
-  }, [fetchProfile]);
-
-  const handleEditChange = (e) => {
-    const { name, value } = e.target;
-    setEditData({ ...editData, [name]: value });
-  };
+  useEffect(() => { fetchProfile(); }, [fetchProfile]);
 
   const handleSave = async () => {
     setSaving(true);
-
     const { error } = await supabase.auth.updateUser({
       data: {
         name: editData.name,
@@ -137,94 +108,14 @@ export default function ProfilePage() {
       await fetchProfile();
       setIsEditing(false);
     } else {
-      console.error("Error updating profile:", error);
-      alert("Failed to save changes.");
+      alert("Update failed. Please try again.");
     }
     setSaving(false);
   };
 
-  const handleCancel = () => {
-    setEditData(userData);
-    setIsEditing(false);
-  };
-
-  const openChangeMaidModal = (booking) => {
-    setSelectedBooking(booking);
-    setNewMaid("");
-    setChangeReason("");
-    setIsModalOpen(true);
-  };
-
-  const closeModal = () => {
-    setIsModalOpen(false);
-    setSelectedBooking(null);
-    setNewMaid("");
-    setChangeReason("");
-  };
-
-  const handleChangeMaid = async () => {
-    if (!newMaid.trim()) {
-      alert("Please enter a maid name or ID.");
-      return;
-    }
-    if (!changeReason.trim()) {
-      alert("Please provide a reason.");
-      return;
-    }
-
-    setUpdatingMaid(true);
-
-    const { data: authData, error: authError } = await supabase.auth.getUser();
-
-    if (authError || !authData.user) {
-      alert("Authentication error. Please log out and log back in.");
-      setUpdatingMaid(false);
-      return;
-    }
-
-    const user = authData.user;
-
-    const { error: insertError } = await supabase
-      .from("maid_changes")
-      .insert({
-        booking_id: selectedBooking.id,
-        new_maid_id: newMaid,
-        change_reason: changeReason,
-        changed_by: user.id,
-        previous_maid_id: selectedBooking.maid_id || null,
-      });
-
-    if (insertError) {
-      console.error("Failed to log maid change:", insertError);
-      alert("Failed to log maid change.");
-      setUpdatingMaid(false);
-      return;
-    }
-
-const { error: updateError } = await supabase
-  .from("bookings")
-  .update({ maid_id: newMaid })
-  .eq("id", selectedBooking.id)
-  .eq("user_id", user.id);
-
-    if (updateError) {
-      console.error("Failed to update maid in booking:", updateError);
-      alert("Failed to update maid in booking.");
-      setUpdatingMaid(false);
-      return;
-    }
-
-    await fetchBookings(user.id);
-    setUpdatingMaid(false);
-    alert("Maid changed successfully!");
-    closeModal();
-  };
-
-  const handleRazorpaySubscription = useCallback(async (plan) => {
+  const handleRazorpaySubscription = async (plan) => {
     if (paymentProcessing) return;
     setPaymentProcessing(true);
-
-    const { duration, price, discount } = plan;
 
     try {
       const response = await fetch("/api/create-razorpay-order", {
@@ -238,540 +129,375 @@ const { error: updateError } = await supabase
         }),
       });
 
-
-      if (!response.ok) {
-        const text = await response.text(); // Debug: Log HTML if not JSON
-        console.error("Response not OK:", response.status, text);
-        throw new Error(`Failed to create Razorpay order: ${response.status}`);
-      }
-
       const orderData = await response.json();
-      const orderId = orderData.id;      // Razorpay returns { id: "order_ABC" }
-      const finalAmount = orderData.amount;
-
+      
       const options = {
-        key: rzp_test_RpvE2nM5XUTYN7,
-        amount: finalAmount,
+        key: RAZORPAY_KEY_ID,
+        amount: orderData.amount,
         currency: "INR",
-        name: "Home Service Subscription",
-        description: `${duration} Subscription - ${discount} OFF`,
-        order_id: orderId,
-        handler: async function (paymentResponse) {
-          try {
-            const verificationResponse = await fetch(`/api/verify-razorpay-payment`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                razorpay_order_id: paymentResponse.razorpay_order_id,
-                razorpay_payment_id: paymentResponse.razorpay_payment_id,
-                razorpay_signature: paymentResponse.razorpay_signature,
-                user_email: userData.email,
-                user_name: userData.name,
-                user_phone: userData.phone,
-                plan_duration: duration,
-                plan_price: price,
-              }),
-            });
+        name: "HomeService Premium",
+        description: `${plan.duration} Plan`,
+        order_id: orderData.id,
+        handler: async (res) => {
+          // 1. Verify payment via your API
+          const verify = await fetch(`/api/verify-razorpay-payment`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ...res, user_email: userData.email, plan_duration: plan.duration, plan_price: plan.price }),
+          });
 
-            if (!verificationResponse.ok) {
-              const text = await verificationResponse.text();
-              console.error("Verification failed:", verificationResponse.status, text);
-              throw new Error("Payment verification failed on server.");
+          if (verify.ok) {
+            // 2. Save to your public.subscribers table
+            const { error: insertError } = await supabase
+              .from("subscribers")
+              .insert([{
+                name: userData.name,
+                email: userData.email,
+                phone: userData.phone,
+                subscribed_at: new Date().toISOString(),
+                plan_duration: plan.duration,
+                plan_price: plan.price,
+                plan_benefits: "1 Free Replacement, 10% Discount, Priority Support",
+                user_id: userData.id // Links to auth.users
+              }]);
+
+            if (insertError) {
+              console.error("Error saving subscription:", insertError);
+              alert("Payment successful, but failed to update profile. Please contact support.");
+            } else {
+              alert("Subscribed Successfully!");
+              fetchProfile(); // Refresh UI to show "Gold Member" status
             }
-
-            alert("Subscription successful! Thank you for subscribing.");
-            await fetchProfile();
-          } catch (verifyError) {
-            console.error("Verification Error:", verifyError);
-            alert("Payment successful, but verification failed. Please contact support.");
           }
         },
-        prefill: {
-          name: userData.name || "Customer",
-          email: userData.email,
-          contact: userData.phone === "Not Provided" ? "" : userData.phone,
-        },
-        theme: {
-          color: "#dc2626",
-        },
+        prefill: { name: userData.name, email: userData.email, contact: userData.phone },
+        theme: { color: "#E11D48" },
       };
 
-      const rzp1 = new window.Razorpay(options);
-
-      rzp1.on("payment.failed", function (response) {
-        console.error("Razorpay Error:", response.error);
-        alert(`Payment failed: ${response.error.description}`);
-      });
-
-      rzp1.open();
+      const rzp = new window.Razorpay(options);
+      rzp.open();
     } catch (err) {
-      console.error("Order Creation Error:", err);
-      alert(err.message || "Could not start payment process. Please try again.");
+      alert("Payment initialization failed.");
     } finally {
       setPaymentProcessing(false);
     }
-  }, [userData, paymentProcessing, fetchProfile]);
+  };
 
-  if (loading)
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-50 to-white">
-        <motion.div
-          animate={{ rotate: 360 }}
-          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-          className="h-12 w-12 border-4 border-red-500 border-t-transparent rounded-full"
-        ></motion.div>
-      </div>
-    );
+  if (loading) return <LoadingSpinner />;
 
-  if (error) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-red-50">
-        <div className="text-center p-8 bg-white rounded-xl shadow-lg">
-          <XCircle size={48} className="text-red-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-800">Error Loading Profile</h2>
-          <p className="text-gray-600 mt-2">{error}</p>
+  return (
+    <div className="min-h-screen bg-[#FDFDFD] text-slate-900 pb-20 font-sans">
+      {/* Hero Header */}
+     {/* --- WELL-DESIGNED HEADER START --- */}
+<div className="relative pb-32 overflow-hidden bg-slate-950">
+  {/* Animated Background Gradients */}
+  <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0">
+    <div className="absolute -top-[10%] -left-[10%] w-[40%] h-[40%] bg-rose-600/20 blur-[120px] rounded-full" />
+    <div className="absolute top-[20%] -right-[10%] w-[30%] h-[50%] bg-blue-600/10 blur-[120px] rounded-full" />
+  </div>
+
+  <div className="relative z-10 max-w-7xl mx-auto px-6 pt-16 pb-24">
+    <div className="flex flex-col md:flex-row items-center md:items-end justify-between gap-8">
+      
+      {/* User Info Section */}
+      <div className="flex flex-col md:flex-row items-center md:items-center gap-6 text-center md:text-left">
+        <motion.div 
+          initial={{ scale: 0.5, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          className="relative"
+        >
+          {/* Avatar with Ring */}
+          <div className="w-32 h-32 rounded-3xl bg-gradient-to-tr from-rose-500 to-rose-400 p-1 shadow-2xl">
+            <div className="w-full h-full rounded-[22px] bg-slate-900 flex items-center justify-center text-4xl font-bold text-white overflow-hidden border-4 border-slate-950">
+              {userData?.avatar ? (
+                <img src={userData.avatar} alt="Profile" className="w-full h-full object-cover" />
+              ) : (
+                userData?.name?.charAt(0)
+              )}
+            </div>
+          </div>
+          {/* Verified Badge */}
+          <div className="absolute -bottom-2 -right-2 bg-emerald-500 text-white p-1.5 rounded-xl border-4 border-slate-950 shadow-lg">
+            <ShieldCheck size={20} />
+          </div>
+        </motion.div>
+
+        <div>
+          <motion.div 
+            initial={{ y: 10, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.1 }}
+            className="flex flex-wrap items-center justify-center md:justify-start gap-3 mb-2"
+          >
+            <h1 className="text-4xl md:text-5xl font-extrabold text-white tracking-tight">
+              {userData?.name}
+            </h1>
+            {userData.subscription && (
+              <span className="flex items-center gap-1.5 px-3 py-1 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-full text-xs font-bold uppercase tracking-widest">
+                <Star size={12} fill="currentColor" /> Gold Member
+              </span>
+            )}
+          </motion.div>
+          <p className="text-slate-400 font-medium flex items-center justify-center md:justify-start gap-2">
+            <Mail size={16} className="text-rose-500" /> {userData.email}
+          </p>
         </div>
+      </div>
+
+      {/* Quick Stats / Action */}
+      <motion.div 
+        initial={{ x: 20, opacity: 0 }}
+        animate={{ x: 0, opacity: 1 }}
+        transition={{ delay: 0.2 }}
+        className="hidden lg:flex gap-4"
+      >
+        <div className="bg-white/5 backdrop-blur-md border border-white/10 p-4 rounded-2xl min-w-[140px]">
+          <p className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">Total Bookings</p>
+          <p className="text-white text-2xl font-black">{bookings.length}</p>
+        </div>
+        <div className="bg-white/5 backdrop-blur-md border border-white/10 p-4 rounded-2xl min-w-[140px]">
+          <p className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">Account Status</p>
+          <p className="text-emerald-400 text-2xl font-black">Active</p>
+        </div>
+      </motion.div>
+
+    </div>
+  </div>
+
+  {/* Decorative Wave Bottom */}
+  <div className="absolute bottom-0 left-0 w-full leading-[0] overflow-hidden">
+    <svg className="relative block w-full h-[60px]" viewBox="0 0 1200 120" preserveAspectRatio="none">
+      <path d="M321.39,56.44c58-10.79,114.16-30.13,172-41.86,82.39-16.72,168.19-17.73,250.45-.39C823.78,31,906.67,72,985.66,92.83c70.05,18.48,146.53,26.09,214.34,3V120H0V95.8C57.23,115,123.67,105.74,182.88,88.74,242.09,71.74,271.86,67.23,321.39,56.44Z" className="fill-[#FDFDFD]"></path>
+    </svg>
+  </div>
+</div>
+{/* --- WELL-DESIGNED HEADER END --- */}
+
+      {/* Navigation Tabs */}
+      <div className="max-w-4xl mx-auto -mt-8 px-6">
+        <nav className="flex p-1.5 bg-white/80 backdrop-blur-md border border-slate-200 rounded-2xl shadow-xl">
+          {["Profile", "My Bookings", "Subscriptions"].map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-semibold transition-all ${
+                activeTab === tab ? "bg-rose-500 text-white shadow-lg shadow-rose-200" : "text-slate-500 hover:bg-slate-50"
+              }`}
+            >
+              {tab === "Profile" && <User size={18} />}
+              {tab === "My Bookings" && <Calendar size={18} />}
+              {tab === "Subscriptions" && <Bell size={18} />}
+              <span className="hidden sm:inline">{tab}</span>
+            </button>
+          ))}
+        </nav>
+      </div>
+
+      <main className="max-w-7xl mx-auto px-6 mt-12">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeTab}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+          >
+            {activeTab === "Profile" && renderProfileTab()}
+            {activeTab === "My Bookings" && renderBookingsTab()}
+            {activeTab === "Subscriptions" && renderSubscriptionsTab()}
+          </motion.div>
+        </AnimatePresence>
+      </main>
+
+      {/* Maid Change Modal */}
+      {isModalOpen && <MaidModal />}
+    </div>
+  );
+
+  // --- SUB-COMPONENTS ---
+
+  function renderProfileTab() {
+    return (
+      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="p-8 border-b border-slate-100 flex justify-between items-center">
+          <div>
+            <h2 className="text-2xl font-bold">Personal Information</h2>
+            <p className="text-slate-500">Manage your contact details and address</p>
+          </div>
+          {!isEditing && (
+            <button onClick={() => setIsEditing(true)} className="flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-xl hover:bg-slate-50 transition-all font-medium">
+              <Edit size={16} /> Edit
+            </button>
+          )}
+        </div>
+        <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-8">
+          <ProfileField label="Full Name" name="name" value={editData.name} icon={<User />} isEditing={isEditing} onChange={(e) => setEditData({...editData, name: e.target.value})} />
+          <ProfileField label="Phone Number" name="phone" value={editData.phone} icon={<Phone />} isEditing={isEditing} onChange={(e) => setEditData({...editData, phone: e.target.value})} />
+          <ProfileField label="Location" name="location" value={editData.location} icon={<MapPin />} isEditing={isEditing} onChange={(e) => setEditData({...editData, location: e.target.value})} />
+          <div className="space-y-2">
+            <label className="text-sm font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
+              <Mail size={14}/> Email Address
+            </label>
+            <div className="p-4 bg-slate-50 rounded-xl text-slate-400 border border-slate-100 italic">{userData.email} (Non-editable)</div>
+          </div>
+          <div className="md:col-span-2">
+            <ProfileField label="Complete Address" name="address" value={editData.address} icon={<Home />} isEditing={isEditing} textarea onChange={(e) => setEditData({...editData, address: e.target.value})} />
+          </div>
+        </div>
+        {isEditing && (
+          <div className="p-8 bg-slate-50 border-t border-slate-100 flex gap-4 justify-end">
+            <button onClick={() => setIsEditing(false)} className="px-6 py-2 text-slate-600 font-medium">Cancel</button>
+            <button onClick={handleSave} disabled={saving} className="px-8 py-2 bg-rose-600 text-white rounded-xl font-bold hover:bg-rose-700 disabled:opacity-50 flex items-center gap-2">
+              {saving ? <RefreshCw className="animate-spin" size={18} /> : <Save size={18} />} Save Changes
+            </button>
+          </div>
+        )}
       </div>
     );
   }
 
-  const subscriptionPlans = [
-    { duration: "3 Months", price: 5999, originalPrice: 6666, discount: "15%", benefits: ["1 Free Replacement", "10% Monthly Salary Discount", "24/7 Customer Support"] },
-    { duration: "6 Months", price: 11999, originalPrice: 13332, discount: "18%", benefits: ["1 Free Replacement", "10% Monthly Salary Discount", "24/7 Customer Support"] },
-    { duration: "1 Year", price: 19999, originalPrice: 24999, discount: "20%", benefits: ["1 Free Replacement", "10% Monthly Salary Discount", "24/7 Customer Support"] },
-  ];
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-red-50 via-white to-red-50 text-gray-900 pb-20">
-      <div className="bg-gradient-to-r text-white from-red-700 via-black to-red-700 py-24 text-center shadow-lg">
-        <h1 className="text-5xl font-extrabold tracking-wide drop-shadow-xl">
-          Your <span className="text-red-300">Profile</span>
-        </h1>
-        <p className="mt-4 text-gray-300">View and manage your personal details</p>
-      </div>
-
-      <div className="max-w-7xl mx-auto mt-10 px-6">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex gap-3 bg-white p-3 rounded-3xl shadow-xl border border-gray-200 backdrop-blur-sm"
-        >
-          {[
-            { name: "Profile", icon: <User size={20} /> },
-            { name: "My Bookings", icon: <Calendar size={20} /> },
-            { name: "Subscriptions", icon: <Bell size={20} /> },
-          ].map((tab) => (
-            <motion.button
-              key={tab.name}
-              onClick={() => setActiveTab(tab.name)}
-              whileHover={{ scale: 1.05, y: -2 }}
-              whileTap={{ scale: 0.95 }}
-              className={`flex-1 px-6 py-4 rounded-2xl font-bold transition-all flex items-center justify-center gap-3 ${activeTab === tab.name
-                ? "bg-gradient-to-r from-red-500 to-red-600 text-white shadow-lg"
-                : "bg-gray-50 text-gray-700 hover:bg-gray-100 hover:shadow-md"
-                }`}
-            >
-              {tab.icon} {tab.name}
-            </motion.button>
-          ))}
-        </motion.div>
-      </div>
-
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={activeTab}
-          initial={{ opacity: 0, x: 30 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: -30 }}
-          transition={{ duration: 0.4, ease: "easeInOut" }}
-          className="max-w-7xl mx-auto px-6 mt-10"
-        >
-          {activeTab === "My Bookings" && (
-            <div>
-              <motion.h2
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="text-4xl font-bold mb-8 text-red-700 flex items-center gap-3"
-              >
-                <Calendar size={32} /> My Bookings
-              </motion.h2>
-              {loadingBookings ? (
-                <div className="text-center py-16">
-                  <motion.div
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                    className="h-12 w-12 border-4 border-red-500 border-t-transparent rounded-full mx-auto"
-                  ></motion.div>
+  function renderBookingsTab() {
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-between items-end">
+          <h2 className="text-3xl font-bold">Your Bookings</h2>
+          <span className="text-slate-500 font-medium">{bookings.length} total services</span>
+        </div>
+        {loadingBookings ? <div className="py-20 text-center"><RefreshCw className="animate-spin mx-auto text-rose-500" size={40} /></div> : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {bookings.map((b) => (
+              <motion.div key={b.id} whileHover={{ y: -5 }} className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm hover:shadow-md transition-all">
+                <div className="flex justify-between items-start mb-4">
+                  <div className="p-3 bg-rose-50 rounded-2xl text-rose-600"><Calendar size={24} /></div>
+                  <span className="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-xs font-bold uppercase tracking-widest">Active</span>
                 </div>
-              ) : bookings.length === 0 ? (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="text-center py-16 bg-white rounded-3xl shadow-xl border border-gray-200"
+                <h3 className="text-xl font-bold text-slate-800">{b.service_name}</h3>
+                <p className="text-slate-500 text-sm mb-4">{b.sub_service_name}</p>
+                <div className="space-y-2 mb-6 border-y border-slate-50 py-4">
+                  <div className="flex justify-between text-sm"><span className="text-slate-500">Amount Paid</span> <span className="font-bold text-slate-900">₹{b.final_amount}</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-slate-500">City</span> <span className="font-medium text-slate-700">{b.city}</span></div>
+                </div>
+                <button 
+                  onClick={() => { setSelectedBooking(b); setIsModalOpen(true); }}
+                  className="w-full py-3 rounded-xl border border-rose-100 text-rose-600 font-bold hover:bg-rose-50 transition-colors flex items-center justify-center gap-2"
                 >
-                  <XCircle size={64} className="text-gray-400 mx-auto mb-6" />
-                  <p className="text-gray-600 text-xl">No bookings found. Start booking services today!</p>
-                  <button className="mt-6 px-8 py-3 bg-red-500 text-white rounded-2xl hover:bg-red-600 transition-colors shadow-lg">
-                    Explore Services
-                  </button>
-                </motion.div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
-                  {bookings.map((b, index) => (
-                    <motion.div
-                      key={b.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.1 }}
-                      whileHover={{ scale: 1.03, y: -5 }}
-                      className="bg-white p-8 rounded-3xl shadow-xl border border-gray-200 hover:shadow-2xl transition-all duration-300"
-                    >
-                      <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-2xl font-bold text-red-700">{b.service_name}</h3>
-                        <div className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-sm font-medium">
-                          Active
-                        </div>
-                      </div>
-                      <p className="text-gray-600 mb-3">
-                        <strong>Sub Service:</strong> {b.sub_service_name}
-                      </p>
-                      <p className="text-gray-600 mb-3">
-                        <strong>City:</strong> {b.city}
-                      </p>
-                      <div className="grid grid-cols-2 gap-4 text-sm text-gray-500 mb-4">
-                        <span>Service: ₹{b.service_price}</span>
-                        <span>Sub: ₹{b.sub_service_price}</span>
-                      </div>
-                      <p className="text-gray-600 mb-3">
-                        <strong>Total:</strong> ₹{b.total_price}
-                      </p>
-                      <div className="flex items-center gap-3 mb-4">
-                        <strong>Discount:</strong>
-                        {b.discount_applied ? (
-                          <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm flex items-center gap-2">
-                            <CheckCircle size={16} /> Applied
-                          </span>
-                        ) : (
-                          <span className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-sm flex items-center gap-2">
-                            <XCircle size={16} /> None
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-3xl font-bold text-red-600 mb-4">₹{b.final_amount}</p>
-                      <p className="text-gray-400 text-sm mb-6">
-                        Booked: {new Date(b.created_at).toLocaleDateString()}
-                      </p>
-                      <button
-                        onClick={() => openChangeMaidModal(b)}
-                        className="w-full bg-gradient-to-r from-blue-500 to-blue-600 text-white py-3 rounded-2xl hover:from-blue-600 hover:to-blue-700 transition-all shadow-lg flex items-center justify-center gap-2"
-                      >
-                        <RefreshCw size={16} /> Change Maid
-                      </button>
-                    </motion.div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {activeTab === "Profile" && (
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-white p-10 rounded-3xl shadow-2xl border border-gray-200"
-            >
-              <div className="flex justify-between items-center mb-10">
-                <h2 className="text-4xl font-bold text-red-700 flex items-center gap-3">
-                  <User size={32} /> Profile Details
-                </h2>
-                {!isEditing && (
-                  <motion.button
-                    whileHover={{ scale: 1.05, y: -2 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => setIsEditing(true)}
-                    className="px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-2xl flex items-center gap-2 shadow-lg hover:shadow-xl transition-all"
-                  >
-                    <Edit size={20} /> Edit Profile
-                  </motion.button>
-                )}
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <InputField
-                  icon={<User size={20} />}
-                  label="Full Name"
-                  name="name"
-                  value={editData.name}
-                  isEditing={isEditing}
-                  onChange={handleEditChange}
-                />
-                <InputField
-                  icon={<Phone size={20} />}
-                  label="Phone Number"
-                  name="phone"
-                  value={editData.phone}
-                  isEditing={isEditing}
-                  onChange={handleEditChange}
-                />
-                <InputField
-                  icon={<Home size={20} />}
-                  label="Address"
-                  name="address"
-                  textarea
-                  value={editData.address}
-                  isEditing={isEditing}
-                  onChange={handleEditChange}
-                />
-                <InputField
-                  icon={<MapPin size={20} />}
-                  label="Location"
-                  name="location"
-                  value={editData.location}
-                  isEditing={isEditing}
-                  onChange={handleEditChange}
-                />
-                <div>
-                  <label className="text-red-700 font-semibold flex items-center gap-3 mb-3 text-lg">
-                    <Mail size={20} /> Email Address
-                  </label>
-                  <p className="bg-gray-50 p-5 rounded-2xl border border-gray-300 shadow-sm">{userData.email}</p>
-                </div>
-                <div>
-                  <label className="text-red-700 font-semibold flex items-center gap-3 mb-3 text-lg">
-                    <Bell size={20} /> Subscription Status
-                  </label>
-                  {userData.subscription ? (
-                    <div className="bg-green-50 p-5 rounded-2xl border border-green-400 flex items-center gap-3 shadow-sm">
-                      <CheckCircle size={24} className="text-green-600" />
-                      <span className="text-green-700 font-medium text-lg">Subscribed (Plan: {userData.subscription.plan_duration})</span>
-                    </div>
-                  ) : (
-                    <div className="bg-red-50 p-5 rounded-2xl border border-red-400 flex items-center gap-3 shadow-sm">
-                      <XCircle size={24} className="text-red-600" />
-                      <span className="text-red-700 font-medium text-lg">Not Subscribed</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <AnimatePresence>
-                {isEditing && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -20 }}
-                    className="flex gap-6 mt-12 justify-center"
-                  >
-                    <motion.button
-                      whileHover={{ scale: 1.05, y: -2 }}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={handleSave}
-                      className="px-8 py-4 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-2xl hover:from-red-600 hover:to-red-700 flex items-center gap-3 shadow-lg transition-all"
-                    >
-                      <Save size={20} /> {saving ? "Saving..." : "Save Changes"}
-                    </motion.button>
-                    <motion.button
-                      whileHover={{ scale: 1.05, y: -2 }}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={handleCancel}
-                      className="px-8 py-4 bg-gray-400 text-white rounded-2xl hover:bg-gray-500 flex items-center gap-3 shadow-lg transition-all"
-                    >
-                      <X size={20} /> Cancel
-                    </motion.button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </motion.div>
-          )}
-
-          {activeTab === "Subscriptions" && (
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-white p-10 rounded-3xl shadow-2xl border border-gray-200"
-            >
-              <h2 className="text-4xl font-bold mb-8 text-red-700 flex items-center gap-3">
-                <Bell size={32} /> Subscriptions
-              </h2>
-              {userData.subscription ? (
-                <div className="text-center py-12">
-                  <CheckCircle size={80} className="text-green-500 mx-auto mb-6" />
-                  <p className="text-gray-700 text-xl mb-6">You're subscribed! Enjoy exclusive updates and offers.</p>
-                  <div className="bg-gray-50 p-6 rounded-2xl mb-6">
-                    <h3 className="text-2xl font-bold text-red-700 mb-4">Your Plan Details (Latest Subscription)</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
-                      <p className="text-gray-700"><strong>Plan Duration:</strong> {userData.subscription.plan_duration}</p>
-                      <p className="text-gray-700"><strong>Plan Price:</strong> ₹{userData.subscription.plan_price}</p>
-                      <p className="text-gray-700"><strong>Subscribed At:</strong> {new Date(userData.subscription.subscribed_at).toLocaleDateString()}</p>
-                      <p className="text-gray-700"><strong>Benefits:</strong> 1 Free Maid Replacement, 10% Monthly Salary Discount, 24/7 Customer Support</p>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center py-12">
-                  <motion.div
-                    initial={{ opacity: 0, y: 30 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="bg-white p-10 rounded-3xl shadow-2xl border border-gray-200"
-                  >
-                    <p className="text-center text-gray-600 mb-12">
-                      Save more with our 3, 6, or 12-month subscriptions — enjoy up to
-                      <span className="text-red-600 font-bold"> 20% OFF </span>
-                      your selected service!
-                    </p>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
-                      {subscriptionPlans.map((plan, index) => (
-                        <motion.div
-                          key={plan.duration}
-                          whileHover={{ scale: 1.05, y: -5 }}
-                          className="bg-white rounded-3xl shadow-xl border border-gray-200 p-8"
-                        >
-                          <h3 className="text-2xl font-bold text-center mb-2">{plan.duration}</h3>
-                          <p className="text-center text-gray-500 mb-4">
-                            Save <span className="text-red-600 font-bold">{plan.discount}</span> on your selected service
-                          </p>
-
-                          <div className="text-center mb-6">
-                            <p className="line-through text-gray-400 text-xl">₹{plan.originalPrice}</p>
-                            <p className="text-red-600 text-4xl font-extrabold">₹{plan.price}</p>
-                          </div>
-
-                          <ul className="text-gray-600 space-y-3 mb-6">
-                            {plan.benefits.map((benefit, i) => (
-                              <li key={i} className="flex items-center"><CheckCircle className="text-green-500 mr-2" /> {benefit}</li>
-                            ))}
-                          </ul>
-
-                          <button
-                            onClick={() => handleRazorpaySubscription(plan)}
-                            disabled={paymentProcessing}
-                            className="w-full bg-red-500 text-white py-3 rounded-2xl hover:bg-red-600 transition-all shadow-lg flex items-center justify-center gap-2 disabled:opacity-50"
-                          >
-                            <CreditCard size={20} />
-                            {paymentProcessing ? "Processing..." : "Subscribe Now"}
-                          </button>
-                        </motion.div>
-                      ))}
-                    </div>
-
-                    <p className="text-gray-500 mb-4">Just purchased a subscription? Click below to sync your status.</p>
-                    <motion.button
-                      whileHover={{ scale: 1.03 }}
-                      whileTap={{ scale: 0.97 }}
-                      onClick={fetchProfile}
-                      className="px-8 py-3 bg-gray-600 text-white rounded-2xl hover:bg-gray-700 transition-colors shadow-lg flex items-center gap-2 mx-auto disabled:opacity-50"
-                      disabled={loading}
-                    >
-                      <RefreshCw size={20} className={loading ? 'animate-spin' : ''} />
-                      {loading ? "Refreshing..." : "Check Status Again"}
-                    </motion.button>
-                  </motion.div>
-                </div>
-              )}
-            </motion.div>
-          )}
-        </motion.div>
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {isModalOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-            onClick={closeModal}
-          >
-            <motion.div
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.8, opacity: 0 }}
-              className="bg-white p-8 rounded-3xl shadow-2xl max-w-lg w-full mx-4"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <h3 className="text-2xl font-bold text-red-700 mb-6 flex items-center gap-3">
-                <RefreshCw size={24} /> Change Maid for Booking
-              </h3>
-              {selectedBooking && (
-                <div className="mb-6 p-4 bg-gray-50 rounded-2xl">
-                  <p className="text-gray-700 mb-2"><strong>Service:</strong> {selectedBooking.service_name}</p>
-                  <p className="text-gray-700 mb-2"><strong>Sub Service:</strong> {selectedBooking.sub_service_name}</p>
-                  <p className="text-gray-700 mb-2"><strong>City:</strong> {selectedBooking.city}</p>
-                  <p className="text-gray-700"><strong>Current Maid:</strong> {selectedBooking.maid_id || "Not Assigned"}</p>
-                </div>
-              )}
-              <div className="mb-4">
-                <label className="block text-gray-700 font-medium mb-2">Maid ID/Name:</label>
-                <input
-                  type="text"
-                  value={newMaid}
-                  onChange={(e) => setNewMaid(e.target.value)}
-                  placeholder="e.g., Maid123 or John Doe"
-                  className="w-full bg-gray-50 border border-gray-300 rounded-2xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all shadow-sm"
-                />
-              </div>
-              <div className="mb-6">
-                <label className="block text-gray-700 font-medium mb-2">Reason for Change:</label>
-                <textarea
-                  value={changeReason}
-                  onChange={(e) => setChangeReason(e.target.value)}
-                  placeholder="e.g., Maid is unavailable, poor service, etc."
-                  rows={3}
-                  className="w-full bg-gray-50 border border-gray-300 rounded-2xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all shadow-sm"
-                />
-              </div>
-              <div className="flex gap-4">
-                <button
-                  onClick={handleChangeMaid}
-                  disabled={updatingMaid}
-                  className="flex-1 bg-gradient-to-r from-red-500 to-red-600 text-white py-3 rounded-2xl hover:from-red-600 hover:to-red-700 transition-all shadow-lg disabled:opacity-50"
-                >
-                  {updatingMaid ? "Updating..." : "Change Maid"}
+                  <RefreshCw size={16} /> Manage Service
                 </button>
-                <button
-                  onClick={closeModal}
-                  className="flex-1 bg-gray-400 text-white py-3 rounded-2xl hover:bg-gray-500 transition-all shadow-lg"
-                >
-                  Cancel
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
+              </motion.div>
+            ))}
+          </div>
         )}
-      </AnimatePresence>
-    </div>
-  );
+      </div>
+    );
+  }
+
+  function renderSubscriptionsTab() {
+    const plans = [
+      { duration: "3 Months", price: 5999, original: 6666, disc: "15%", color: "rose" },
+      { duration: "6 Months", price: 11999, original: 13332, disc: "18%", color: "indigo", popular: true },
+      { duration: "1 Year", price: 19999, original: 24999, disc: "20%", color: "slate" },
+    ];
+
+    return (
+      <div className="space-y-8">
+        {userData.subscription ? (
+          <div className="bg-emerald-50 border border-emerald-200 rounded-3xl p-10 text-center">
+            <div className="w-20 h-20 bg-emerald-500 rounded-full flex items-center justify-center text-white mx-auto mb-6 shadow-lg">
+              <ShieldCheck size={40} />
+            </div>
+            <h2 className="text-3xl font-bold text-emerald-900">You are a Pro Member!</h2>
+            <p className="text-emerald-700 mt-2">Current Plan: {userData.subscription.plan_duration} active until expired.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {plans.map((plan) => (
+              <div key={plan.duration} className={`relative bg-white border ${plan.popular ? 'border-rose-500 ring-4 ring-rose-50' : 'border-slate-200'} rounded-3xl p-8 transition-transform hover:scale-105`}>
+                {plan.popular && <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-rose-500 text-white px-4 py-1 rounded-full text-xs font-bold uppercase tracking-widest">Most Popular</div>}
+                <h3 className="text-xl font-bold mb-1">{plan.duration}</h3>
+                <div className="flex items-baseline gap-2 mb-6">
+                  <span className="text-4xl font-black text-slate-900">₹{plan.price}</span>
+                  <span className="text-slate-400 line-through text-sm">₹{plan.original}</span>
+                </div>
+                <ul className="space-y-4 mb-8 text-sm text-slate-600">
+                  <li className="flex items-center gap-2"><CheckCircle size={16} className="text-emerald-500" /> 1 Free Replacement</li>
+                  <li className="flex items-center gap-2"><CheckCircle size={16} className="text-emerald-500" /> 10% Salary Discount</li>
+                  <li className="flex items-center gap-2"><CheckCircle size={16} className="text-emerald-500" /> Priority Support</li>
+                </ul>
+                <button 
+                  onClick={() => handleRazorpaySubscription(plan)}
+                  disabled={paymentProcessing}
+                  className={`w-full py-4 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all ${
+                    plan.popular ? 'bg-rose-500 text-white shadow-lg shadow-rose-200' : 'bg-slate-900 text-white'
+                  }`}
+                >
+                  {paymentProcessing ? <RefreshCw className="animate-spin" /> : <CreditCard size={18} />} Get Started
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // --- INTERNAL COMPONENTS ---
+  
+  function ProfileField({ label, value, icon, isEditing, onChange, textarea }) {
+    return (
+      <div className="space-y-2">
+        <label className="text-sm font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
+          {icon && <span className="text-rose-500">{icon}</span>} {label}
+        </label>
+        {isEditing ? (
+          textarea ? (
+            <textarea value={value} onChange={onChange} rows={3} className="w-full p-4 rounded-xl border border-slate-200 focus:ring-2 focus:ring-rose-500 outline-none transition-all" />
+          ) : (
+            <input type="text" value={value} onChange={onChange} className="w-full p-4 rounded-xl border border-slate-200 focus:ring-2 focus:ring-rose-500 outline-none transition-all" />
+          )
+        ) : (
+          <p className="p-4 bg-slate-50 rounded-xl text-slate-700 border border-slate-100 font-medium">{value}</p>
+        )}
+      </div>
+    );
+  }
+
+  function MaidModal() {
+    return (
+      <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-6">
+        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-3xl max-w-md w-full overflow-hidden shadow-2xl">
+          <div className="p-8 bg-rose-600 text-white">
+            <h3 className="text-2xl font-bold">Manage Maid</h3>
+            <p className="opacity-80">Update or replace your assigned professional</p>
+          </div>
+          <div className="p-8 space-y-4">
+            <div>
+              <label className="text-sm font-bold text-slate-500 block mb-1">New Maid Name/ID</label>
+              <input type="text" value={newMaid} onChange={(e) => setNewMaid(e.target.value)} className="w-full p-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-rose-500" placeholder="e.g. MH-102" />
+            </div>
+            <div>
+              <label className="text-sm font-bold text-slate-500 block mb-1">Reason for change</label>
+              <textarea value={changeReason} onChange={(e) => setChangeReason(e.target.value)} rows={3} className="w-full p-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-rose-500" placeholder="Briefly explain..." />
+            </div>
+            <div className="flex gap-3 pt-4">
+              <button onClick={() => setIsModalOpen(false)} className="flex-1 py-3 text-slate-600 font-bold">Discard</button>
+              <button className="flex-1 py-3 bg-rose-600 text-white rounded-xl font-bold shadow-lg shadow-rose-100 hover:bg-rose-700">Update Now</button>
+            </div>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
 }
 
-function InputField({ icon, label, name, value, onChange, isEditing, textarea }) {
+function LoadingSpinner() {
   return (
-    <div className="md:col-span-1">
-      <label className="text-red-700 font-semibold flex items-center gap-3 mb-3 text-lg">
-        {icon} {label}
-      </label>
-
-      {isEditing ? (
-        textarea ? (
-          <textarea
-            name={name}
-            value={value}
-            onChange={onChange}
-            rows={4}
-            className="w-full bg-gray-50 border border-gray-300 rounded-2xl px-5 py-4 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all shadow-sm"
-          ></textarea>
-        ) : (
-          <input
-            type="text"
-            name={name}
-            value={value}
-            onChange={onChange}
-            className="w-full bg-gray-50 border border-gray-300 rounded-2xl px-5 py-4 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all shadow-sm"
-          />
-        )
-      ) : (
-        <p className="bg-gray-50 p-5 rounded-2xl border border-gray-300 shadow-sm">{value}</p>
-      )}
+    <div className="min-h-screen flex items-center justify-center bg-white">
+      <div className="relative">
+        <div className="h-16 w-16 border-4 border-rose-100 border-t-rose-500 rounded-full animate-spin"></div>
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="h-2 w-2 bg-rose-500 rounded-full"></div>
+        </div>
+      </div>
     </div>
   );
 }

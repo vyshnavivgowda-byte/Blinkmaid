@@ -5,6 +5,14 @@ module.exports = {
   ],
   theme: {
     extend: {
+      /* ===== BRAND COLORS (FROM LOGO) ===== */
+      colors: {
+        blinkred: "#E63946",     // Logo red (maid)
+        blinkblack: "#000000",   // Logo black (Blink)
+        blinkwhite: "#FFFFFF",   // Background white
+      },
+
+      /* ===== ANIMATIONS (UNCHANGED) ===== */
       animation: {
         float: "float 6s ease-in-out infinite",
         "fade-in": "fadeIn 1.5s ease-in-out",

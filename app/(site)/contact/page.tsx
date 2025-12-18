@@ -1,428 +1,307 @@
 "use client";
 
-import { useState, useEffect } from "react"; // Import useEffect for the toast visibility logic
-import { Phone, Mail, MapPin, Clock, Star, Loader2, X } from "lucide-react";
+import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { 
+  Phone, Mail, MapPin, Clock, Star, Loader2, 
+  X, CheckCircle, XCircle, ArrowRight, Shield
+} from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 
-// -------------------- TOAST MESSAGE COMPONENT --------------------
+/* -------------------- PREMIUM TOAST -------------------- */
 const Toast = ({ message, type, onClose }) => {
   if (!message) return null;
-
-  let bgColor = "";
-  let textColor = "text-white";
-  let Icon = null;
-
-  if (type === "success") {
-    bgColor = "bg-green-600";
-    Icon = CheckCircle;
-  } else if (type === "error") {
-    bgColor = "bg-red-600";
-    Icon = XCircle;
-  } else {
-    // Default/Info
-    bgColor = "bg-blue-600";
-    Icon = Info;
-  }
-
-  // Use useEffect to automatically close the toast after a few seconds
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      onClose();
-    }, 5000); // Toast disappears after 5 seconds
-
-    return () => clearTimeout(timer); // Cleanup timer on unmount/re-render
-  }, [message, onClose]);
-
-
+  const isSuccess = type === "success";
+  
   return (
-    <div className="fixed bottom-5 right-5 z-[1000] p-4">
-        <div className={`flex items-center space-x-4 ${bgColor} ${textColor} p-4 rounded-xl shadow-2xl min-w-[300px] transition-all duration-300 transform translate-x-0`}>
-            {Icon && <Icon className="w-6 h-6 flex-shrink-0" />}
-            <span className="font-medium flex-grow">{message}</span>
-            <button onClick={onClose} className="p-1 rounded-full hover:bg-white/20 transition-colors duration-200">
-                <X className="w-4 h-4" />
-            </button>
+    <AnimatePresence>
+      <motion.div 
+        initial={{ opacity: 0, x: 50 }}
+        animate={{ opacity: 1, x: 0 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        className="fixed bottom-10 right-10 z-[1000]"
+      >
+        <div className={`flex items-center gap-5 backdrop-blur-md border ${isSuccess ? 'border-blinkred/20 bg-white/90' : 'border-black/10 bg-white/90'} p-6 rounded-2xl shadow-[0_30px_60px_rgba(0,0,0,0.12)] min-w-[350px]`}>
+          <div className={`w-12 h-12 rounded-full flex items-center justify-center ${isSuccess ? 'bg-blinkred text-white' : 'bg-black text-white'}`}>
+            {isSuccess ? <CheckCircle size={24} /> : <XCircle size={24} />}
+          </div>
+          <div className="flex-1">
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-1">{isSuccess ? 'Status: Confirmed' : 'Status: Interrupted'}</p>
+            <p className="text-sm text-blinkblack font-bold leading-tight">{message}</p>
+          </div>
+          <button onClick={onClose} className="hover:bg-gray-100 p-2 rounded-full transition-colors">
+            <X className="w-4 h-4 text-gray-400" />
+          </button>
         </div>
-    </div>
+      </motion.div>
+    </AnimatePresence>
   );
 };
 
-// Placeholder icons (using Lucide icons imported earlier)
-const CheckCircle = ({ className }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>;
-const XCircle = ({ className }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>;
-const Info = ({ className }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>;
+/* -------------------- RATING INPUT -------------------- */
+const RatingInput = ({ rating, setRating }) => (
+  <div className="flex gap-3 py-3">
+    {[1, 2, 3, 4, 5].map((star) => (
+      <motion.button
+        whileHover={{ scale: 1.2, rotate: 5 }}
+        whileTap={{ scale: 0.9 }}
+        key={star}
+        type="button"
+        onClick={() => setRating(star)}
+      >
+        <Star
+          className={`w-9 h-9 transition-all duration-300 ${
+            rating >= star ? "text-blinkred fill-blinkred" : "text-gray-100 fill-gray-50"
+          }`}
+        />
+      </motion.button>
+    ))}
+  </div>
+);
 
+export default function Contact() {
+  const [formData, setFormData] = useState({ name: "", email: "", phone: "", message: "" });
+  const [reviewData, setReviewData] = useState({ name: "", rating: 0, review: "" });
+  const [toast, setToast] = useState({ message: "", type: "" });
+  const [contactLoading, setContactLoading] = useState(false);
+  const [reviewLoading, setReviewLoading] = useState(false);
 
-// A small reusable component for the Star Rating
-const RatingInput = ({ rating, setRating }) => {
-    return (
-      <div className="flex gap-1.5 mt-2">
-        {[1, 2, 3, 4, 5].map((star) => (
-          <Star
-            key={star}
-            className={`w-7 h-7 cursor-pointer transition-all duration-200 ${
-              rating >= star ? "text-red-500 fill-red-500 hover:text-red-600 hover:fill-red-600" : "text-gray-400 hover:text-red-300"
-            }`}
-            onClick={() => setRating(star)}
-          />
-        ))}
-      </div>
-    );
+  const showToast = (message, type) => setToast({ message, type });
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setContactLoading(true);
+    try {
+      const { error } = await supabase.from("contacts").insert([formData]);
+      if (error) throw error;
+      showToast("Transmission received. We will contact you shortly.", "success");
+      setFormData({ name: "", email: "", phone: "", message: "" });
+    } catch {
+      showToast("Connection failed. Please check your network.", "error");
+    } finally {
+      setContactLoading(false);
+    }
   };
 
+  const handleReviewSubmit = async (e) => {
+    e.preventDefault();
+    if (!reviewData.rating) return showToast("A rating is required for submission.", "error");
+    setReviewLoading(true);
+    try {
+      const { error } = await supabase.from("website_reviews").insert([reviewData]);
+      if (error) throw error;
+      showToast("Thank you. Your feedback is our priority.", "success");
+      setReviewData({ name: "", rating: 0, review: "" });
+    } catch {
+      showToast("Review could not be submitted.", "error");
+    } finally {
+      setReviewLoading(false);
+    }
+  };
 
-const Contact = () => {
-    const [formData, setFormData] = useState({
-      name: "",
-      email: "",
-      phone: "",
-      message: "",
-    });
-  
-    const [reviewData, setReviewData] = useState({
-      name: "",
-      rating: 0,
-      review: "",
-    });
-  
-    // Unified state for managing toasts
-    const [toast, setToast] = useState({ message: "", type: "" });
+  return (
+    <div className="bg-white text-blinkblack min-h-screen selection:bg-blinkred selection:text-white">
+      <Toast {...toast} onClose={() => setToast({ message: "", type: "" })} />
 
-    const [contactLoading, setContactLoading] = useState(false);
-    const [reviewLoading, setReviewLoading] = useState(false);
+      {/* --- CINEMATIC HERO WITH BACKGROUND IMAGE --- */}
+      <section className="relative w-full h-[70vh] flex items-end overflow-hidden">
+        {/* Background Image with Parallax-like effect */}
+        <div 
+            className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat transition-transform duration-700 hover:scale-105"
+            style={{ backgroundImage: "url('https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=2070&auto=format&fit=crop')" }}
+        >
+            {/* Dark/White Gradient Overlay for Readability */}
+            <div className="absolute inset-0 bg-gradient-to-t from-white via-white/40 to-black/20" />
+        </div>
 
-    // Helper to display a toast
-    const showToast = (message, type) => {
-        setToast({ message, type });
-    };
-
-    const handleChange = (e) => {
-      setFormData({ ...formData, [e.target.name]: e.target.value });
-    };
-  
-    const handleReviewChange = (e) => {
-      setReviewData({ ...reviewData, [e.target.name]: e.target.value });
-    };
-  
-    const handleRatingChange = (newRating) => {
-      setReviewData({ ...reviewData, rating: newRating });
-    };
-  
-    const handleSubmit = async (e) => {
-      e.preventDefault();
-      setContactLoading(true);
-      setToast({ message: "", type: "" }); // Clear old toast
-
-      try {
-        const { error } = await supabase.from("contacts").insert([
-          {
-            name: formData.name,
-            email: formData.email,
-            phone: formData.phone,
-            message: formData.message,
-          },
-        ]);
-  
-        if (error) throw error;
-  
-        showToast("Message sent successfully! We will get back to you soon.", "success");
-        setFormData({ name: "", email: "", phone: "", message: "" });
-  
-      } catch (err) {
-        console.error(err);
-        showToast("Error sending message. Please try again.", "error");
-      } finally {
-        setContactLoading(false);
-      }
-    };
-  
-    const handleReviewSubmit = async (e) => {
-      e.preventDefault();
-      setToast({ message: "", type: "" }); // Clear old toast
-
-      if (reviewData.rating === 0) {
-        showToast("Please provide a star rating before submitting.", "error");
-          return;
-      }
-      setReviewLoading(true);
-  
-      try {
-        const { error } = await supabase.from("website_reviews").insert([
-          {
-            name: reviewData.name,
-            rating: reviewData.rating,
-            review: reviewData.review,
-          },
-        ]);
-  
-        if (error) throw error;
-  
-        showToast("Thank you! Your feedback has been submitted.", "success");
-        setReviewData({ name: "", rating: 0, review: "" });
-  
-      } catch (err) {
-        console.error("Supabase error:", err?.message || err);
-        showToast("Unable to save review. Please try again later.", "error");
-      } finally {
-          setReviewLoading(false);
-      }
-    };
-  
-    const contactDetails = [
-      {
-        icon: Phone,
-        title: "Call Us",
-        info: "+91 9620296838",
-        desc: "Mon-Sat 8AM-8PM",
-        gradient: "from-red-600 to-red-800",
-        blur: "bg-red-500/30",
-      },
-      {
-        icon: Mail,
-        title: "Email Us",
-        info: "support@blinkmaid.com",
-        desc: "We reply within 24 hrs",
-        gradient: "from-gray-800 to-red-700",
-        blur: "bg-gray-700/30",
-      },
-      {
-        icon: MapPin,
-        title: "Visit Us",
-        info: "NO. 33, SHOP NO.01, TELECOM LAYOUT MAIN ROAD, BENGALURU",
-        gradient: "from-red-700 to-red-900",
-        blur: "bg-red-600/40",
-      },
-      {
-        icon: Clock,
-        title: "Working Hours",
-        info: "8:00 AM - 8:00 PM",
-        desc: "Monday - Saturday",
-        gradient: "from-gray-900 to-gray-700",
-        blur: "bg-gray-700/40",
-      },
-    ];
-  
-    return (
-      <div className="bg-white text-gray-900 overflow-hidden min-h-screen font-sans">
-  
-        {/* -------------------- TOAST RENDERED HERE -------------------- */}
-        <Toast 
-            message={toast.message} 
-            type={toast.type} 
-            onClose={() => setToast({ message: "", type: "" })} 
-        />
-  
-        {/* -------------------- HERO SECTION -------------------- */}
-        <section className="bg-gradient-to-br from-red-800 via-black to-red-900 text-white pt-40 pb-24 px-6 md:px-20 text-center relative overflow-hidden">
-          <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/black-linen.png')]"></div>
-          <div className="relative z-10">
-            <p className="text-red-300 font-medium mb-2 uppercase tracking-widest">Connect with Us</p>
-            <h1 className="text-5xl md:text-7xl font-extrabold text-white drop-shadow-xl mb-4">
-              Let's Start a <span className="text-red-400">Conversation</span>
-            </h1>
-            <p className="text-gray-300 text-lg max-w-3xl mx-auto">
-              Whether you have a question about our services, pricing, or need support, our team is ready to help you find the perfect cleaning solution.
-            </p>
-          </div>
-        </section>
-  
-        {/* -------------------- CONTACT INFO BOXES -------------------- */}
-        <section className="py-20 px-8 md:px-20 -mt-20 relative z-20">
-          <div className="grid md:grid-cols-4 gap-6 max-w-7xl mx-auto">
-            {contactDetails.map((item, i) => (
-              <div
-                key={i}
-                className="relative bg-white rounded-3xl p-8 shadow-2xl hover:shadow-red-300/50 hover:-translate-y-1 transition-all duration-500 text-center border border-gray-100 overflow-hidden group"
-              >
-                <div
-                  className={`absolute -top-10 left-1/2 transform -translate-x-1/2 w-40 h-40 ${item.blur} blur-[80px] rounded-full group-hover:blur-[100px] transition-all duration-500`}
-                ></div>
-  
-                <div
-                  className={`relative mx-auto mb-6 w-16 h-16 rounded-full flex items-center justify-center bg-gradient-to-br ${item.gradient} text-white shadow-xl group-hover:shadow-red-500/50 transition-all duration-300`}
-                >
-                  <item.icon className="w-8 h-8 group-hover:scale-110 transition-transform duration-300" />
-                </div>
-  
-                <h3 className="text-xl font-extrabold text-gray-900 mb-2">{item.title}</h3>
-                <p className="font-semibold text-gray-700 break-words group-hover:text-red-600 transition-colors duration-300">
-                  {item.info}
-                </p>
-                <p className="text-sm text-gray-500 mt-1">{item.desc}</p>
+        <div className="relative z-10 max-w-7xl mx-auto w-full px-6 pb-12">
+          <div className="grid lg:grid-cols-2 gap-12 items-end">
+            <motion.div
+              initial={{ opacity: 0, y: 50 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 1, ease: "easeOut" }}
+            >
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-12 h-[2px] bg-blinkred"></div>
+                <span className="text-xs font-black uppercase tracking-[0.5em] text-blinkred">Concierge Support</span>
               </div>
+              <h1 className="text-7xl md:text-[10rem] font-black tracking-tighter leading-[0.75] mb-0">
+                GET IN <br /> 
+                <span className="text-blinkblack">TOUCH.</span>
+              </h1>
+            </motion.div>
+            
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.6 }}
+              className="lg:pb-8"
+            >
+              <p className="text-xl text-blinkblack font-bold leading-relaxed max-w-md border-l-4 border-blinkred pl-6">
+                We believe your time is the ultimate luxury. Let us restore the soul of your environment.
+              </p>
+            </motion.div>
+          </div>
+        </div>
+      </section>
+
+      {/* --- INFO BENTO TILES --- */}
+      <section className="px-6 py-20 max-w-7xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
+            {[
+              { icon: Phone, label: "Direct Line", val: "+91 93804 19755" },
+              { icon: Mail, label: "Digital Mail", val: "support@blinkmaid.com" },
+              { icon: MapPin, label: "Studio", val: "Thanisandra, Bengaluru" },
+              { icon: Clock, label: "Operating", val: "Mon-Sat, 8AM-8PM" }
+            ].map((item, i) => (
+              <motion.div
+                key={i}
+                whileHover={{ backgroundColor: "#000", color: "#fff" }}
+                className="p-10 rounded-[2rem] bg-gray-50 border border-gray-100 group transition-all duration-500"
+              >
+                <item.icon className="w-6 h-6 mb-6 text-blinkred group-hover:text-white transition-colors" />
+                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">{item.label}</p>
+                <p className="font-bold text-lg tracking-tight">{item.val}</p>
+              </motion.div>
             ))}
           </div>
-        </section>
-  
-        {/* -------------------- MAIN CONTENT: FORM & REVIEW -------------------- */}
-        <section className="py-24 px-8 md:px-20 bg-white relative">
-          <div className="max-w-7xl mx-auto grid lg:grid-cols-3 gap-16">
-  
-              {/* ---------- CONTACT FORM (2/3 width) ---------- */}
-              <div className="lg:col-span-2">
-                  <h2 className="text-4xl font-extrabold text-gray-900 mb-8 border-l-4 border-red-600 pl-4">
-                      Send Us a <span className="text-red-600">Quick Message</span>
-                  </h2>
-  
-                  <form onSubmit={handleSubmit} className="bg-gray-50 border border-gray-200 shadow-xl rounded-3xl p-8 md:p-10 space-y-6">
-                      <div className="grid sm:grid-cols-2 gap-6">
-                          <div>
-                              <label className="text-sm font-bold text-gray-700 mb-1 block">Full Name *</label>
-                              <input
-                                  type="text"
-                                  name="name"
-                                  value={formData.name}
-                                  onChange={handleChange}
-                                  required
-                                  className="w-full px-4 py-3 border border-gray-300 focus:border-red-500 focus:ring-red-500 rounded-xl transition duration-200"
-                                  placeholder="John Doe"
-                              />
-                          </div>
-  
-                          <div>
-                              <label className="text-sm font-bold text-gray-700 mb-1 block">Phone Number</label>
-                              <input
-                                  type="tel"
-                                  name="phone"
-                                  value={formData.phone}
-                                  onChange={handleChange}
-                                  className="w-full px-4 py-3 border border-gray-300 focus:border-red-500 focus:ring-red-500 rounded-xl transition duration-200"
-                                  placeholder="+91 98765 43210"
-                              />
-                          </div>
-                      </div>
-  
-                      <div>
-                          <label className="text-sm font-bold text-gray-700 mb-1 block">Email *</label>
-                          <input
-                              type="email"
-                              name="email"
-                              value={formData.email}
-                              onChange={handleChange}
-                              required
-                              className="w-full px-4 py-3 border border-gray-300 focus:border-red-500 focus:ring-red-500 rounded-xl transition duration-200"
-                              placeholder="you@example.com"
-                          />
-                      </div>
-  
-                      <div>
-                          <label className="text-sm font-bold text-gray-700 mb-1 block">Message *</label>
-                          <textarea
-                              name="message"
-                              rows={5}
-                              value={formData.message}
-                              onChange={handleChange}
-                              required
-                              className="w-full px-4 py-3 border border-gray-300 focus:border-red-500 focus:ring-red-500 rounded-xl resize-none transition duration-200"
-                              placeholder="Tell us about your cleaning needs, preferred date, or any questions you have..."
-                          ></textarea>
-                      </div>
-  
-                      <button 
-                          type="submit" 
-                          disabled={contactLoading}
-                          className="w-full py-4 bg-gradient-to-r from-red-700 to-black text-white rounded-xl font-bold text-lg hover:from-red-800 hover:to-gray-900 transition-all duration-300 flex items-center justify-center disabled:opacity-70 disabled:cursor-not-allowed"
-                      >
-                          {contactLoading ? (
-                              <>
-                                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                                  Sending...
-                              </>
-                          ) : (
-                              "Send Message"
-                          )}
-                      </button>
-                  </form>
-              </div>
-  
-  
-              {/* ---------- REVIEW FORM (1/3 width) ---------- */}
-              <div className="lg:col-span-1">
-                  <h2 className="text-4xl font-extrabold text-gray-900 mb-8 border-l-4 border-black pl-4">
-                      Leave a <span className="text-black">Review</span>
-                  </h2>
-                  
-                  <form onSubmit={handleReviewSubmit} className="bg-red-50/50 p-8 rounded-3xl shadow-xl border border-red-100 space-y-6">
-  
-                      <div className="text-left">
-                          <label className="font-bold text-gray-700 mb-1 block">Your Name *</label>
-                          <input
-                              type="text"
-                              name="name"
-                              required
-                              value={reviewData.name}
-                              onChange={handleReviewChange}
-                              className="w-full px-4 py-3 border border-red-200 focus:border-red-500 focus:ring-red-500 rounded-xl transition duration-200"
-                              placeholder="Enter your name"
-                          />
-                      </div>
-  
-                      <div className="text-left">
-                          <label className="font-bold text-gray-700 mb-1 block">Rating *</label>
-                          <RatingInput 
-                              rating={reviewData.rating} 
-                              setRating={handleRatingChange} 
-                          />
-                      </div>
-  
-                      <div className="text-left">
-                          <label className="font-bold text-gray-700 mb-1 block">Your Review *</label>
-                          <textarea
-                              name="review"
-                              rows={4}
-                              required
-                              value={reviewData.review}
-                              onChange={handleReviewChange}
-                              className="w-full px-4 py-3 border border-red-200 focus:border-red-500 focus:ring-red-500 rounded-xl resize-none transition duration-200"
-                              placeholder="Write your experience..."
-                          />
-                      </div>
-  
-                      <button
-                          type="submit"
-                          disabled={reviewLoading}
-                          className="w-full py-4 bg-gradient-to-r from-black to-red-800 text-white font-bold rounded-xl text-lg hover:from-gray-900 hover:to-red-700 transition-all duration-300 flex items-center justify-center disabled:opacity-70 disabled:cursor-not-allowed"
-                      >
-                          {reviewLoading ? (
-                              <>
-                                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                                  Submitting...
-                              </>
-                          ) : (
-                              "Submit Review"
-                          )}
-                      </button>
-                  </form>
-              </div>
-          </div>
-        </section>
-  
-        {/* -------------------- MAP -------------------- */}
-        <section className="py-24 px-8 md:px-20 bg-gray-50">
-          <div className="max-w-7xl mx-auto text-center">
-            <h2 className="text-4xl font-extrabold text-gray-900 mb-3">
-              Our <span className="text-red-600">Location</span>
-            </h2>
-  
-            <p className="text-gray-600 mb-10 text-lg font-medium max-w-2xl mx-auto">
-              Find us at: NO. 33, SHOP NO.01, TELECOM LAYOUT MAIN ROAD, ASHWATHNAGAR, THANISANDRA, BENGALURU - 560077
-            </p>
-  
-            <div className="w-full h-[450px] border-8 border-white rounded-3xl overflow-hidden shadow-2xl shadow-red-200/50">
-              <iframe
-                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d15548.74052327576!2d77.6200236!3d13.023253!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3bae172ed4f63c87%3A0x7d25e01b332b85c1!2sTelecom%20Layout%2C%20Ashwathnagar%2C%20Thanisandra%2C%20Bengaluru%2C%20Karnataka%20560077!5e0!3m2!1sen!2sin!4v1704285093751!5m2!1sen!2sin"
-                width="100%" 
-                height="100%"
-                style={{ border: 0 }}
-                allowFullScreen=""
-                loading="lazy"
-                referrerPolicy="no-referrer-when-downgrade"
-              ></iframe>
+
+          <motion.div 
+            whileHover={{ scale: 0.98 }}
+            className="bg-blinkred rounded-[2rem] p-10 text-white flex flex-col justify-between overflow-hidden relative min-h-[400px]"
+          >
+             <Shield className="absolute -right-10 -top-10 w-64 h-64 text-white/10 rotate-12" />
+             <h3 className="text-4xl font-black leading-none uppercase tracking-tighter relative z-10">Trusted by <br/> Premium <br/> Estates.</h3>
+             <div className="relative z-10">
+                <p className="text-sm font-bold opacity-80 mb-4 tracking-wide uppercase">Member of Global Quality Alliance</p>
+                <div className="h-1 w-20 bg-white"></div>
+             </div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* --- FORM SECTION --- */}
+      <section className="py-24 px-6 max-w-7xl mx-auto">
+        <div className="grid lg:grid-cols-12 gap-24 items-start">
+          
+          {/* Main Form */}
+          <div className="lg:col-span-7">
+            <div className="mb-16">
+               <h2 className="text-4xl font-black tracking-tighter uppercase mb-4">Send a <span className="text-blinkred">Message</span></h2>
+               <div className="h-2 w-24 bg-blinkblack"></div>
             </div>
+            
+            <form onSubmit={handleSubmit} className="space-y-12">
+              <div className="grid md:grid-cols-2 gap-12">
+                <div className="relative">
+                  <input
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    className="peer w-full bg-transparent border-b-2 border-gray-100 py-4 focus:border-blinkred outline-none transition-all font-bold text-xl placeholder-transparent"
+                    placeholder="Name" required id="name"
+                  />
+                  <label htmlFor="name" className="absolute left-0 top-0 text-[10px] font-black uppercase tracking-widest text-gray-400 transition-all peer-placeholder-shown:top-4 peer-placeholder-shown:text-sm peer-focus:top-0 peer-focus:text-[10px] peer-focus:text-blinkred">Your Identity</label>
+                </div>
+
+                <div className="relative">
+                  <input
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    className="peer w-full bg-transparent border-b-2 border-gray-100 py-4 focus:border-blinkred outline-none transition-all font-bold text-xl placeholder-transparent"
+                    placeholder="Phone" id="phone"
+                  />
+                  <label htmlFor="phone" className="absolute left-0 top-0 text-[10px] font-black uppercase tracking-widest text-gray-400 transition-all peer-placeholder-shown:top-4 peer-placeholder-shown:text-sm peer-focus:top-0 peer-focus:text-[10px] peer-focus:text-blinkred">Phone Number</label>
+                </div>
+              </div>
+              
+              <div className="relative">
+                <input
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  className="peer w-full bg-transparent border-b-2 border-gray-100 py-4 focus:border-blinkred outline-none transition-all font-bold text-xl placeholder-transparent"
+                  placeholder="Email" required id="email"
+                />
+                <label htmlFor="email" className="absolute left-0 top-0 text-[10px) font-black uppercase tracking-widest text-gray-400 transition-all peer-placeholder-shown:top-4 peer-placeholder-shown:text-sm peer-focus:top-0 peer-focus:text-[10px] peer-focus:text-blinkred">Email Correspondence</label>
+              </div>
+
+              <div className="relative">
+                <textarea
+                  rows={4}
+                  value={formData.message}
+                  onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+                  className="peer w-full bg-transparent border-b-2 border-gray-100 py-4 focus:border-blinkred outline-none resize-none transition-all font-bold text-xl placeholder-transparent"
+                  placeholder="Message" required id="msg"
+                />
+                <label htmlFor="msg" className="absolute left-0 top-0 text-[10px] font-black uppercase tracking-widest text-gray-400 transition-all peer-placeholder-shown:top-4 peer-placeholder-shown:text-sm peer-focus:top-0 peer-focus:text-[10px] peer-focus:text-blinkred">Inquiry Details</label>
+              </div>
+
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                disabled={contactLoading}
+                className="w-full py-6 bg-blinkblack text-white font-black uppercase tracking-[0.3em] flex items-center justify-center gap-4 group"
+              >
+                {contactLoading ? <Loader2 className="animate-spin" /> : (
+                  <>
+                    Submit Transmission
+                    <ArrowRight className="w-5 h-5 group-hover:translate-x-2 transition-transform" />
+                  </>
+                )}
+              </motion.button>
+            </form>
           </div>
-        </section>
-      </div>
-    );
-  };
-  
-  export default Contact;
+
+          {/* Review Column */}
+          <div className="lg:col-span-5">
+            <motion.div 
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="bg-white border-2 border-blinkblack rounded-[3rem] p-12 shadow-[20px_20px_0px_#000]"
+            >
+              <h2 className="text-3xl font-black tracking-tighter uppercase mb-6 text-blinkblack leading-none">Leave a <br/> <span className="text-blinkred italic text-5xl">Legacy.</span></h2>
+              
+              <form onSubmit={handleReviewSubmit} className="space-y-8">
+                <div className="space-y-2">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Identity</p>
+                  <input
+                    value={reviewData.name}
+                    onChange={(e) => setReviewData({ ...reviewData, name: e.target.value })}
+                    className="w-full bg-gray-50 rounded-xl px-6 py-4 outline-none border border-transparent focus:border-blinkblack transition-all font-bold"
+                    placeholder="Enter Name" required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Performance Rating</p>
+                  <RatingInput rating={reviewData.rating} setRating={(r) => setReviewData({ ...reviewData, rating: r })} />
+                </div>
+
+                <div className="space-y-2">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Statement</p>
+                  <textarea
+                    rows={4}
+                    value={reviewData.review}
+                    onChange={(e) => setReviewData({ ...reviewData, review: e.target.value })}
+                    className="w-full bg-gray-50 rounded-xl px-6 py-4 outline-none border border-transparent focus:border-blinkblack transition-all font-bold resize-none"
+                    placeholder="Share your thoughts..." required
+                  />
+                </div>
+
+                <button
+                  disabled={reviewLoading}
+                  className="w-full py-5 border-2 border-blinkblack text-blinkblack font-black uppercase tracking-widest hover:bg-blinkblack hover:text-white transition-all"
+                >
+                  {reviewLoading ? <Loader2 className="animate-spin mx-auto" /> : "Post Review"}
+                </button>
+              </form>
+            </motion.div>
+          </div>
+
+        </div>
+      </section>
+    </div>
+  );
+}

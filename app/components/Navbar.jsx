@@ -2,10 +2,11 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { HiMenu, HiX } from "react-icons/hi";
-import { Eye, EyeOff, X, Loader2, User, LogOut, CheckCircle } from "lucide-react";
+import { Eye, EyeOff, X, Loader2, User, LogOut, CheckCircle, ArrowRight, ShieldCheck } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
 import logo from "@/public/logo.jpg";
 import { supabase } from "../../lib/supabaseClient";
 import { useToast } from "@/app/components/toast/ToastContext";
@@ -22,29 +23,21 @@ const plans = [
   {
     duration: "3 Months",
     price: 5999,
-    features: [
-      "1 Free Replacement",
-      "10% Monthly Salary Discount",
-      "24/7 Customer Support",
-    ],
+    tagline: "Essential Protection",
+    features: ["1 Free Replacement", "10% Salary Discount", "Priority Support"],
   },
   {
     duration: "6 Months",
     price: 11999,
-    features: [
-      "1 Free Replacement",
-      "10% Monthly Salary Discount",
-      "24/7 Customer Support",
-    ],
+    tagline: "Most Popular Choice",
+    popular: true,
+    features: ["2 Free Replacements", "15% Salary Discount", "Personal Manager"],
   },
   {
     duration: "12 Months",
     price: 19999,
-    features: [
-      "1 Free Replacement",
-      "10% Monthly Salary Discount",
-      "24/7 Customer Support",
-    ],
+    tagline: "Elite Annual Peace",
+    features: ["Unlimited Replacements", "20% Salary Discount", "VIP Concierge"],
   },
 ];
 
@@ -58,684 +51,334 @@ export default function Navbar() {
   const [user, setUser] = useState(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [showSubscribePopup, setShowSubscribePopup] = useState(false);
-  const [formErrors, setFormErrors] = useState({}); // For form validation
-  const [subscribers, setSubscribers] = useState([]); // For displaying subscribers table
+  const [formErrors, setFormErrors] = useState({});
+  const [subscribers, setSubscribers] = useState([]);
   const [loadingSubscribers, setLoadingSubscribers] = useState(false);
+
   const modalRef = useRef(null);
   const { showToast } = useToast();
   const subscribeModalRef = useRef(null);
 
   const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    password: "",
-    confirmPassword: "", // Added for registration
-    phone: "",
-    subscribe: false,
-    plan: null,
+    name: "", email: "", password: "", confirmPassword: "", phone: "",
   });
 
-  // Reset form and errors
   const resetForm = useCallback(() => {
-    setFormData({
-      name: "",
-      email: "",
-      password: "",
-      confirmPassword: "",
-      phone: "",
-      subscribe: false,
-      plan: null,
-    });
+    setFormData({ name: "", email: "", password: "", confirmPassword: "", phone: "" });
     setFormErrors({});
   }, []);
 
-  // Form validation
   const validateForm = useCallback(() => {
     const errors = {};
     if (isRegister) {
-      if (!formData.name.trim()) errors.name = "Name is required.";
-      if (!formData.phone.trim() || !/^\d{10}$/.test(formData.phone)) errors.phone = "Valid 10-digit phone number required.";
-      if (formData.password !== formData.confirmPassword) errors.confirmPassword = "Passwords do not match.";
+      if (!formData.name.trim()) errors.name = "Name required";
+      if (!/^\d{10}$/.test(formData.phone)) errors.phone = "10-digit phone required";
+      if (formData.password !== formData.confirmPassword) errors.confirmPassword = "Passwords mismatch";
     }
-    if (!formData.email.trim() || !/\S+@\S+\.\S+/.test(formData.email)) errors.email = "Valid email is required.";
-    if (!formData.password || formData.password.length < 6) errors.password = "Password must be at least 6 characters.";
+    if (!/\S+@\S+\.\S+/.test(formData.email)) errors.email = "Invalid email";
+    if (formData.password.length < 6) errors.password = "Min 6 characters";
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   }, [formData, isRegister]);
 
-  // Registration function (removed email confirmation, added auto-login)
-  const handleRegister = async (e) => {
-    e.preventDefault();
-    if (!validateForm()) return;
-    setLoading(true);
-
-    try {
-      const { data, error } = await supabase.auth.signUp({
-        email: formData.email,
-        password: formData.password,
-        options: {
-          data: {
-            name: formData.name,
-            phone: formData.phone,
-          },
-        },
-      });
-
-      if (error) {
-        console.error('Supabase signup error:', error); // Debug log
-        showToast(error.message, "error");
-        setLoading(false);
-        return;
-      }
-
-      // Auto-login after successful registration
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: formData.email,
-        password: formData.password,
-      });
-
-      if (signInError) {
-        console.error('Auto-login error:', signInError); // Debug log
-        showToast("Registration successful, but auto-login failed. Please log in manually.", "warning");
-      } else {
-        showToast("Registration successful! You are now logged in.", "success");
-      }
-
-      // Note: Subscription happens after payment, not here
-      setLoading(false);
-      resetForm();
-      setIsRegister(false);
-      setModalOpen(false);
-    } catch (err) {
-      console.error('Fetch error in handleRegister:', err); // Debug log
-      showToast("Network error. Please check your connection and try again.", "error");
-      setLoading(false);
-    }
-  };
-
-  // Check user authentication on mount and listen for changes
   useEffect(() => {
     const getUser = async () => {
-      const { data, error } = await supabase.auth.getSession();
-      if (!error && data?.session) {
+      const { data } = await supabase.auth.getSession();
+      if (data?.session) {
         setUser(data.session.user);
-        fetchSubscribers(data.session.user.id); // Fetch subscribers on login
-      } else {
-        setUser(null);
-        setSubscribers([]);
+        fetchSubscribers(data.session.user.id);
       }
     };
     getUser();
-
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user || null);
-      if (session?.user) {
-        fetchSubscribers(session.user.id);
-      } else {
-        setSubscribers([]);
-      }
+      if (session?.user) fetchSubscribers(session.user.id);
     });
-
-    return () => {
-      listener?.subscription.unsubscribe();
-    };
+    return () => listener?.subscription.unsubscribe();
   }, []);
 
-  // Fetch subscribers for the authenticated user
   const fetchSubscribers = async (userId) => {
     setLoadingSubscribers(true);
-    const { data, error } = await supabase
-      .from("subscribers")
-      .select("*")
-      .eq("user_id", userId);
-    if (error) {
-      showToast(`Error fetching subscribers: ${error.message}`, "error");
-    } else {
-      setSubscribers(data || []);
-    }
+    const { data } = await supabase.from("subscribers").select("*").eq("user_id", userId);
+    setSubscribers(data || []);
     setLoadingSubscribers(false);
   };
 
-  // Close modal when clicking outside or pressing ESC
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      // For login/register modal
-      if (modalRef.current && !modalRef.current.contains(event.target)) {
-        setModalOpen(false);
-      }
-      // For subscription modal
-      if (subscribeModalRef.current && !subscribeModalRef.current.contains(event.target)) {
-        setShowSubscribePopup(false);
-      }
-    };
-
-    const handleKeyDown = (event) => {
-      if (event.key === "Escape") {
-        setModalOpen(false);
-        setShowSubscribePopup(false);
-      }
-    };
-
-    if (modalOpen || showSubscribePopup) {
-      document.addEventListener("mousedown", handleClickOutside);
-      document.addEventListener("keydown", handleKeyDown);
-    }
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [modalOpen, showSubscribePopup]);
-
-  // Handle form input changes
-  const handleChange = useCallback((e) => {
-    const { name, value, type, checked } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: type === "checkbox" ? checked : value }));
-    // Clear error on change
-    if (formErrors[name]) {
-      setFormErrors((prev) => ({ ...prev, [name]: "" }));
-    }
-  }, [formErrors]);
-
-  // Handle login
   const handleLogin = async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
     setLoading(true);
+    const { error } = await supabase.auth.signInWithPassword({ email: formData.email, password: formData.password });
+    setLoading(false);
+    if (error) showToast(error.message, "error");
+    else { showToast("Welcome Back!", "success"); setModalOpen(false); resetForm(); }
+  };
 
-    const { error } = await supabase.auth.signInWithPassword({
+  const handleRegister = async (e) => {
+    e.preventDefault();
+    if (!validateForm()) return;
+    setLoading(true);
+    const { error } = await supabase.auth.signUp({
       email: formData.email,
       password: formData.password,
+      options: { data: { name: formData.name, phone: formData.phone } }
     });
-
-    setLoading(false);
-
-    if (error) {
-      showToast(error.message, "error");
-    } else {
-      showToast("Login successful!", "success");
-      resetForm();
+    if (error) { showToast(error.message, "error"); setLoading(false); }
+    else {
+      await supabase.auth.signInWithPassword({ email: formData.email, password: formData.password });
+      showToast("Account Created!", "success");
       setModalOpen(false);
+      setLoading(false);
+      resetForm();
     }
   };
 
-  // Handle logout
   const handleLogout = async () => {
     await supabase.auth.signOut();
     setUser(null);
     setDropdownOpen(false);
-    setSubscribers([]);
-    showToast("Logged out successfully!", "success");
+    showToast("Logged out", "success");
   };
 
-  // Handle subscription (only for logged-in users, save with user_id)
-  const handleSubscription = async (plan, userId) => {
-    try {
-      const { error } = await supabase.from("subscribers").insert([
-        {
-          name: user.user_metadata?.name || "",
-          email: user.email,
-          phone: user.user_metadata?.phone || "",
-          plan_duration: plan.duration,
-          plan_price: plan.price,
-          plan_benefits: JSON.stringify(plan.features), // Store as JSON string
-          user_id: userId,
-          subscribed_at: new Date(),
-        },
-      ]);
-      if (error) {
-        showToast(`Subscription failed: ${error.message}. Please try again.`, "error");
-        return false;
-      }
-      showToast("Subscription saved successfully!", "success");
-      fetchSubscribers(userId); // Refresh subscribers
-      return true;
-    } catch (err) {
-      showToast("An unexpected error occurred. Please try again.", "error");
-      return false;
-    }
-  };
-
-  // Handle Razorpay payment (only for logged-in users)
   const handlePayment = (plan) => {
-    if (!user) {
-      showToast("Please log in to subscribe.", "error");
-      return;
-    }
-
     const options = {
-      key: "rzp_test_RpvE2nM5XUTYN7", // Replace with your Razorpay Key ID
+      key: "rzp_test_RpvE2nM5XUTYN7",
       amount: plan.price * 100,
       currency: "INR",
-      name: "Blinkmaid Subscription",
-      description: `${plan.duration} Subscription`,
-      handler: function (response) {
-        setFormData((prev) => ({ ...prev, subscribe: true, plan }));
-        setShowSubscribePopup(false);
-        showToast("Payment successful! You are now subscribed.", "success");
-        handleSubscription(plan, user.id);
+      name: "Blinkmaid",
+      handler: async function (response) {
+        const { error } = await supabase.from("subscribers").insert([{
+          name: user.user_metadata?.name,
+          email: user.email,
+          phone: user.user_metadata?.phone,
+          plan_duration: plan.duration,
+          plan_price: plan.price,
+          plan_benefits: JSON.stringify(plan.features),
+          user_id: user.id,
+          subscribed_at: new Date(),
+        }]);
+        if (!error) {
+          showToast("Subscription Activated!", "success");
+          fetchSubscribers(user.id);
+          setShowSubscribePopup(false);
+        }
       },
-      prefill: {
-        name: user.user_metadata?.name || "",
-        email: user.email,
-        contact: user.user_metadata?.phone || "",
-      },
-      theme: {
-        color: "#dc2626",
-      },
+      prefill: { email: user.email },
+      theme: { color: "#E63946" },
     };
-
-    const rzp = new window.Razorpay(options);
-    rzp.on("payment.failed", function (response) {
-      showToast(`Payment failed: ${response.error.description}`, "error");
-    });
-    rzp.open();
+    new window.Razorpay(options).open();
   };
-
-  // Toggle password visibility
-  const togglePasswordVisibility = () => setShowPassword(!showPassword);
-
-  // Toggle menu for mobile
-  const toggleMenu = () => setMenuOpen(!menuOpen);
-
-  // Toggle dropdown
-  const toggleDropdown = () => setDropdownOpen(!dropdownOpen);
 
   return (
     <>
-      <header className="bg-white shadow-lg fixed top-0 left-0 w-full z-50 border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
-          {/* Logo */}
-          <Link
-            href="/"
-            className="flex items-center space-x-3 hover:scale-105 transition-transform duration-200"
-            aria-label="Go to Home"
-          >
-            <Image
-              src={logo}
-              alt="Blinkmaid Logo"
-              width={180}
-              height={200}
-              className="rounded-full shadow-md"
-            />
+      <header className="bg-white/80 backdrop-blur-md fixed top-0 left-0 w-full z-50 border-b border-gray-100">
+        <div className="max-w-7xl mx-auto px-6 h-24 flex items-center justify-between">
+          <Link href="/" className="relative group">
+            <Image src={logo} alt="Logo" width={160} height={50} className="transition-transform duration-500 group-hover:scale-105" />
           </Link>
 
-          {/* Desktop Menu */}
-          <nav className="hidden md:flex items-center space-x-8">
+          <nav className="hidden md:flex items-center space-x-2">
             {menuItems.map(({ label, path }) => (
               <Link
                 key={path}
                 href={path}
-                className={`font-medium px-4 py-2 rounded-lg transition-all duration-200 ${pathname === path
-                  ? "text-white bg-gradient-to-r from-red-700 to-gray-900 shadow-lg"
-                  : "text-gray-800 hover:text-white hover:bg-gradient-to-r hover:from-red-700 hover:to-gray-900 hover:shadow-md"
-                  }`}
+                className={`px-5 py-2 text-[13px] font-black uppercase tracking-tighter transition-all relative group ${
+                  pathname === path ? "text-blinkred" : "text-blinkblack/60 hover:text-blinkblack"
+                }`}
               >
                 {label}
+                {pathname === path && (
+                  <motion.div layoutId="underline" className="absolute bottom-0 left-5 right-5 h-0.5 bg-blinkred" />
+                )}
               </Link>
             ))}
           </nav>
 
-          {/* Auth Section */}
-          <div className="relative flex items-center space-x-4">
+          <div className="flex items-center gap-4">
             {user ? (
-              <>
-                {/* Profile Dropdown */}
-                <div className="relative">
-                  <button
-                    onClick={toggleDropdown}
-                    className="flex items-center space-x-2 px-4 py-2 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors"
-                  >
-                    <User size={20} />
-                    <span className="font-medium">{user.user_metadata?.name || user.email}</span>
-                  </button>
-                  {dropdownOpen && (
-                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10 border">
-                      <Link
-                        href="/profile"
-                        className="block px-4 py-2 text-gray-800 hover:bg-gray-100"
-                        onClick={() => setDropdownOpen(false)}
-                      >
-                        Profile
-                      </Link>
-                      <button
-                        onClick={handleLogout}
-                        className="block w-full text-left px-4 py-2 text-gray-800 hover:bg-gray-100"
-                      >
-                        <LogOut size={16} className="inline mr-2" />
-                        Logout
-                      </button>
-                    </div>
-                  )}
-                </div>
-                {/* Subscribe Button */}
+              <div className="flex items-center gap-3">
                 <button
                   onClick={() => setShowSubscribePopup(true)}
-                  className="px-4 py-2 bg-gradient-to-r from-red-700 to-gray-900 text-white rounded-xl font-semibold hover:shadow-lg transition-all duration-200"
+                  className="hidden md:block text-[11px] font-black uppercase tracking-[0.2em] px-6 py-3 bg-blinkred text-white rounded-full hover:bg-black transition-all shadow-xl shadow-red-500/20"
                 >
-                  Subscribe
+                  Membership
                 </button>
-              </>
+
+                <div className="relative">
+                  <button
+                    onClick={() => setDropdownOpen(!dropdownOpen)}
+                    className="p-3 bg-gray-50 rounded-full hover:bg-gray-100 transition-all border border-gray-100"
+                  >
+                    <User size={20} className="text-blinkblack" />
+                  </button>
+
+                  <AnimatePresence>
+                    {dropdownOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 10 }}
+                        className="absolute right-0 mt-4 w-64 bg-white rounded-3xl shadow-2xl border border-gray-100 p-2 overflow-hidden z-[60]"
+                      >
+                        <div className="px-5 py-4 border-b border-gray-50 bg-gray-50/50 rounded-t-2xl">
+                          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Logged In As</p>
+                          <p className="text-xs font-bold truncate text-blinkblack">{user.user_metadata?.name || user.email}</p>
+                        </div>
+
+                        <div className="p-1 space-y-1">
+                          <Link
+                            href="/profile"
+                            onClick={() => setDropdownOpen(false)}
+                            className="w-full flex items-center gap-3 px-4 py-3 text-[11px] font-black uppercase tracking-widest text-gray-600 hover:bg-gray-50 hover:text-blinkred transition-all rounded-xl"
+                          >
+                            <User size={16} /> View My Profile
+                          </Link>
+
+                          <button
+                            onClick={handleLogout}
+                            className="w-full flex items-center gap-3 px-4 py-3 text-[11px] font-black uppercase tracking-widest text-red-500 hover:bg-red-50 transition-all rounded-xl"
+                          >
+                            <LogOut size={16} /> Secure Logout
+                          </button>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              </div>
             ) : (
               <button
                 onClick={() => setModalOpen(true)}
-                className="px-4 py-2 bg-gradient-to-r from-red-700 to-gray-900 text-white rounded-xl font-semibold hover:shadow-lg transition-all duration-200"
+                className="text-[12px] font-black uppercase tracking-[0.2em] px-8 py-4 bg-blinkblack text-white rounded-full hover:bg-blinkred transition-all shadow-2xl shadow-black/20"
               >
-                Login
+                Get Started
               </button>
             )}
-          </div>
 
-          {/* Mobile Menu Button */}
-          <button
-            onClick={toggleMenu}
-            className="md:hidden text-gray-800 p-2 hover:bg-gray-100 rounded-lg transition-colors"
-            aria-label="Toggle menu"
-          >
-            {menuOpen ? <HiX size={28} /> : <HiMenu size={28} />}
-          </button>
+            <button onClick={() => setMenuOpen(!menuOpen)} className="md:hidden p-2 text-blinkblack">
+              {menuOpen ? <HiX size={28} /> : <HiMenu size={28} />}
+            </button>
+          </div>
         </div>
-
-        {/* Mobile Menu */}
-        {menuOpen && (
-          <div className="md:hidden bg-white shadow-lg border-t border-gray-200 animate-fade-in">
-            <nav className="flex flex-col space-y-2 p-6">
-              {menuItems.map(({ label, path }) => (
-                <Link
-                  key={path}
-                  href={path}
-                  className={`font-medium px-4 py-3 rounded-lg transition-all duration-200 ${pathname === path
-                    ? "bg-red-600 text-white shadow-lg"
-                    : "text-gray-800 hover:bg-gradient-to-r hover:from-red-700 hover:to-gray-900 hover:text-white"
-                    }`}
-                  onClick={() => setMenuOpen(false)}
-                >
-                  {label}
-                </Link>
-              ))}
-              {/* Mobile Subscribe Button (only for logged-in users) */}
-              {user && (
-                <button
-                  onClick={() => { setMenuOpen(false); setShowSubscribePopup(true); }}
-                  className="font-medium px-4 py-3 rounded-lg text-gray-800 hover:bg-gradient-to-r hover:from-red-700 hover:to-gray-900 hover:text-white"
-                >
-                  Subscribe
-                </button>
-              )}
-            </nav>
-          </div>
-        )}
-
-        {/* Auth Modal */}
-        {modalOpen && (
-          <div className="fixed inset-0 bg-black/70 flex justify-center items-center z-[100] p-4 animate-fade-in">
-            <div
-              ref={modalRef}
-              className="bg-white rounded-3xl w-full max-w-md shadow-2xl p-6 relative"
-              role="dialog"
-              aria-labelledby="modal-title"
-            >
-              <button
-                onClick={() => setModalOpen(false)}
-                className="absolute right-4 top-4 text-gray-500 hover:text-red-600 transition-colors"
-                aria-label="Close modal"
-              >
-                <X size={22} />
-              </button>
-
-              <h2 id="modal-title" className="text-2xl font-bold text-gray-800 mb-6 text-center">
-                {isRegister ? "Create Account" : "Welcome Back"}
-              </h2>
-
-              <form
-                onSubmit={isRegister ? handleRegister : handleLogin}
-                className="grid grid-cols-1 gap-4"
-              >
-                {isRegister && (
-                  <>
-                    <div>
-                      <input
-                        type="text"
-                        name="name"
-                        placeholder="Full Name"
-                        value={formData.name}
-                        onChange={handleChange}
-                        className={`w-full border px-4 py-3 rounded-xl focus:ring-2 focus:ring-red-500 outline-none transition-all ${formErrors.name ? "border-red-500" : "border-gray-300"
-                          }`}
-                        required
-                        aria-describedby={formErrors.name ? "name-error" : undefined}
-                      />
-                      {formErrors.name && <p id="name-error" className="text-red-500 text-sm mt-1">{formErrors.name}</p>}
-                    </div>
-                    <div>
-                      <input
-                        type="tel"
-                        name="phone"
-                        placeholder="Phone Number"
-                        value={formData.phone}
-                        onChange={handleChange}
-                        className={`w-full border px-4 py-3 rounded-xl focus:ring-2 focus:ring-red-500 outline-none transition-all ${formErrors.phone ? "border-red-500" : "border-gray-300"
-                          }`}
-                        required
-                        aria-describedby={formErrors.phone ? "phone-error" : undefined}
-                      />
-                      {formErrors.phone && <p id="phone-error" className="text-red-500 text-sm mt-1">{formErrors.phone}</p>}
-                    </div>
-                  </>
-                )}
-                {/* Email */}
-                <div>
-                  <input
-                    type="email"
-                    name="email"
-                    placeholder="Email Address"
-                    value={formData.email}
-                    onChange={handleChange}
-                    className={`w-full border px-4 py-3 rounded-xl focus:ring-2 focus:ring-red-500 outline-none transition-all ${formErrors.email ? "border-red-500" : "border-gray-300"
-                      }`}
-                    required
-                    aria-describedby={formErrors.email ? "email-error" : undefined}
-                  />
-                  {formErrors.email && <p id="email-error" className="text-red-500 text-sm mt-1">{formErrors.email}</p>}
-                </div>
-
-                {/* Password */}
-                <div className="relative">
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    name="password"
-                    placeholder="Password"
-                    value={formData.password}
-                    onChange={handleChange}
-                    className={`w-full border px-4 py-3 pr-10 rounded-xl focus:ring-2 focus:ring-red-500 outline-none transition-all ${formErrors.password ? "border-red-500" : "border-gray-300"
-                      }`}
-                    required
-                    aria-describedby={formErrors.password ? "password-error" : undefined}
-                  />
-                  <button
-                    type="button"
-                    onClick={togglePasswordVisibility}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-red-600 transition-colors"
-                    aria-label="Toggle password visibility"
-                  >
-                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
-                  {formErrors.password && <p id="password-error" className="text-red-500 text-sm mt-1">{formErrors.password}</p>}
-                </div>
-
-                {/* Confirm Password for Registration */}
-                {isRegister && (
-                  <div className="relative">
-                    <input
-                      type={showPassword ? "text" : "password"}
-                      name="confirmPassword"
-                      placeholder="Confirm Password"
-                      value={formData.confirmPassword}
-                      onChange={handleChange}
-                      className={`w-full border px-4 py-3 pr-10 rounded-xl focus:ring-2 focus:ring-red-500 outline-none transition-all ${formErrors.confirmPassword ? "border-red-500" : "border-gray-300"
-                        }`}
-                      required
-                      aria-describedby={formErrors.confirmPassword ? "confirm-password-error" : undefined}
-                    />
-                    <button
-                      type="button"
-                      onClick={togglePasswordVisibility}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-red-600 transition-colors"
-                      aria-label="Toggle password visibility"
-                    >
-                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                    </button>
-                    {formErrors.confirmPassword && <p id="confirm-password-error" className="text-red-500 text-sm mt-1">{formErrors.confirmPassword}</p>}
-                  </div>
-                )}
-
-                {/* Submit Button */}
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className={`w-full py-3 rounded-xl text-white font-semibold transition-all duration-200 flex items-center justify-center ${loading
-                    ? "bg-gray-400 cursor-not-allowed"
-                    : "bg-gradient-to-r from-black to-red-600 hover:from-red-600 hover:to-black shadow-lg hover:shadow-xl"
-                    }`}
-                >
-                  {loading ? (
-                    <>
-                      <Loader2 className="animate-spin mr-2" size={18} />
-                      Processing...
-                    </>
-                  ) : isRegister ? (
-                    "Register"
-                  ) : (
-                    "Login"
-                  )}
-                </button>
-              </form>
-
-              {/* Toggle Login/Register */}
-              <p className="text-center text-sm text-gray-600 mt-4">
-                {isRegister ? (
-                  <>
-                    Already have an account?{" "}
-                    <span
-                      onClick={() => setIsRegister(false)}
-                      className="text-red-600 hover:underline cursor-pointer"
-                    >
-                      Login
-                    </span>
-                  </>
-                ) : (
-                  <>
-                    Don’t have an account?{" "}
-                    <span
-                      onClick={() => setIsRegister(true)}
-                      className="text-red-600 hover:underline cursor-pointer"
-                    >
-                      Register
-                    </span>
-                  </>
-                )}
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* Subscription Modal */}
-        {showSubscribePopup && (
-          <div className="fixed inset-0 bg-black/70 flex justify-center items-center z-[200] p-4 animate-fade-in">
-            <div
-              ref={subscribeModalRef}
-              className="bg-white rounded-3xl w-full max-w-4xl shadow-2xl p-8 relative"
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="subscribe-title"
-            >
-              <button
-                onClick={() => setShowSubscribePopup(false)}
-                className="absolute right-4 top-4 text-gray-500 hover:text-red-600 transition-colors"
-                aria-label="Close subscription popup"
-              >
-                <X size={22} />
-              </button>
-
-              <h2
-                id="subscribe-title"
-                className="text-xl font-semibold text-gray-800 mb-3 text-center"
-              >
-                Blinkmaid Subscription Plans
-              </h2>
-
-              <p className="text-gray-600 text-sm mb-5 text-center leading-relaxed">
-                Choose a plan to subscribe and get exclusive updates, offers, and benefits!
-              </p>
-
-              {/* 3 Column Plans */}
-              <div className="grid grid-cols-3 gap-8">
-                {plans.map((plan, index) => (
-                  <div
-                    key={index}
-                    className="bg-white rounded-3xl p-6 shadow-xl border border-gray-200 hover:shadow-2xl transition-all duration-300"
-                  >
-                    <h3 className="text-2xl font-bold text-center text-gray-900">
-                      {plan.duration}
-                    </h3>
-
-                    <p className="text-sm text-center text-gray-600 mt-1">
-                      Flat Price — No Hidden Charges
-                    </p>
-
-                    <p className="text-3xl font-extrabold text-red-600 text-center mt-4">
-                      ₹{plan.price}
-                    </p>
-
-                    <div className="mt-6 space-y-3">
-                      {plan.features?.map((feature, i) => (
-                        <div key={i} className="flex items-center gap-2 text-gray-700 text-sm">
-                          <span className="text-green-600 text-lg">✔</span>
-                          {feature}
-                        </div>
-                      ))}
-                    </div>
-
-                    <button
-                      onClick={() => handlePayment(plan)}
-                      className="mt-6 w-full bg-gradient-to-r from-red-600 to-red-800 text-white py-3 rounded-2xl font-semibold hover:from-red-700 hover:to-red-900 transition-all duration-200 shadow-md"
-                    >
-                      Buy Now
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
       </header>
 
-      {/* Subscription Banner Below Header */}
-      {/* Subscription Banner Below Header */}
-    {user && (
-  <div className="bg-gradient-to-r from-green-600 to-emerald-700 text-white py-2 px-4 text-center text-sm font-medium shadow-md sticky top-20 z-40">
-    {loadingSubscribers ? (
-            <div className="flex justify-center items-center">
-              <Loader2 className="animate-spin mr-2" size={16} />
-              Loading subscription...
+      {/* Subscription Status Banner */}
+      {user && (
+        <div className="fixed top-24 left-0 w-full z-40">
+          <div className={`${subscribers.length > 0 ? 'bg-blinkblack' : 'bg-blinkred'} text-white py-2 overflow-hidden shadow-lg`}>
+            <div className="flex items-center justify-center gap-4 text-[10px] font-black uppercase tracking-[0.3em]">
+              {loadingSubscribers ? (
+                <Loader2 className="animate-spin" size={14} />
+              ) : subscribers.length > 0 ? (
+                <>
+                  <ShieldCheck size={14} className="text-green-400" />
+                  Active {subscribers[0].plan_duration} Member
+                </>
+              ) : (
+                <>
+                  Unprotected Account <ArrowRight size={14} />
+                  <button onClick={() => setShowSubscribePopup(true)} className="underline decoration-2 underline-offset-4">Upgrade Now</button>
+                </>
+              )}
             </div>
-          ) : subscribers.length > 0 ? (
-            `You have an active subscription: ${subscribers[0].plan_duration} for ₹${subscribers[0].plan_price}. Subscribed on ${new Date(subscribers[0].subscribed_at).toLocaleDateString()}. Benefits: ${JSON.parse(subscribers[0].plan_benefits || "[]").join(", ")}.`
-          ) : (
-            <span>
-              You don’t have an active subscription yet.{" "}
-              <button
-                onClick={() => setShowSubscribePopup(true)}
-                className="underline font-semibold hover:text-yellow-200 ml-1"
-              >
-                Subscribe Now
-              </button>
-            </span>
-          )}
-
+          </div>
         </div>
       )}
 
+      {/* Auth Modal */}
+      <AnimatePresence>
+        {modalOpen && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/90 backdrop-blur-sm flex justify-center items-center z-[100] p-4"
+          >
+            <motion.div
+              ref={modalRef}
+              initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }}
+              className="bg-white rounded-[3rem] w-full max-w-md p-10 relative shadow-[0_0_50px_rgba(230,57,70,0.2)]"
+            >
+              <button onClick={() => setModalOpen(false)} className="absolute right-8 top-8 text-gray-400 hover:text-blinkred"><X size={24} /></button>
+              <div className="text-center mb-10">
+                <h2 className="text-4xl font-black tracking-tighter uppercase mb-2">
+                  {isRegister ? "Join" : "Enter"} <span className="text-blinkred italic">Blink.</span>
+                </h2>
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Premium Domestic Solutions</p>
+              </div>
+              <form onSubmit={isRegister ? handleRegister : handleLogin} className="space-y-4">
+                {isRegister && (
+                  <div className="grid grid-cols-1 gap-4">
+                    <input type="text" name="name" placeholder="FULL NAME" onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="w-full bg-gray-50 border-none rounded-2xl px-6 py-4 focus:ring-2 focus:ring-blinkred font-bold text-xs uppercase" required />
+                    <input type="tel" name="phone" placeholder="PHONE" onChange={(e) => setFormData({ ...formData, phone: e.target.value })} className="w-full bg-gray-50 border-none rounded-2xl px-6 py-4 focus:ring-2 focus:ring-blinkred font-bold text-xs uppercase" required />
+                  </div>
+                )}
+                <input type="email" name="email" placeholder="EMAIL ADDRESS" onChange={(e) => setFormData({ ...formData, email: e.target.value })} className="w-full bg-gray-50 border-none rounded-2xl px-6 py-4 focus:ring-2 focus:ring-blinkred font-bold text-xs uppercase" required />
+                <div className="relative">
+                  <input type={showPassword ? "text" : "password"} name="password" placeholder="PASSWORD" onChange={(e) => setFormData({ ...formData, password: e.target.value })} className="w-full bg-gray-50 border-none rounded-2xl px-6 py-4 focus:ring-2 focus:ring-blinkred font-bold text-xs uppercase" required />
+                  <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-4 text-gray-400">{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button>
+                </div>
+                {isRegister && (
+                  <input type="password" name="confirmPassword" placeholder="CONFIRM PASSWORD" onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })} className="w-full bg-gray-50 border-none rounded-2xl px-6 py-4 focus:ring-2 focus:ring-blinkred font-bold text-xs uppercase" required />
+                )}
+                <button type="submit" disabled={loading} className="w-full bg-blinkblack py-5 rounded-2xl text-white font-black uppercase tracking-[0.3em] text-[10px] hover:bg-blinkred transition-all flex items-center justify-center gap-3 shadow-xl">
+                  {loading ? <Loader2 className="animate-spin" size={18} /> : isRegister ? "Create Profile" : "Access Network"} <ArrowRight size={16} />
+                </button>
+              </form>
+              <button onClick={() => setIsRegister(!isRegister)} className="w-full text-center mt-8 text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-blinkred transition-colors">
+                {isRegister ? "I already have access →" : "New to the network? Request access →"}
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Bento Subscription Modal */}
+      <AnimatePresence>
+        {showSubscribePopup && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/95 backdrop-blur-md flex justify-center items-center z-[200] p-4"
+          >
+            <motion.div
+              ref={subscribeModalRef}
+              initial={{ scale: 0.9 }} animate={{ scale: 1 }}
+              className="w-full max-w-6xl relative"
+            >
+              <button onClick={() => setShowSubscribePopup(false)} className="absolute -top-12 right-0 text-white hover:text-blinkred flex items-center gap-2 text-[10px] font-black tracking-widest uppercase">
+                Close Portal <X size={20} />
+              </button>
+              <div className="text-center mb-12">
+                <h2 className="text-5xl md:text-7xl font-black text-white tracking-tighter uppercase leading-none">
+                  SELECT YOUR <span className="text-blinkred italic">TIER.</span>
+                </h2>
+                <p className="text-gray-500 font-bold uppercase tracking-[0.4em] text-[10px] mt-4">Professional Maintenance Plans</p>
+              </div>
+              <div className="grid md:grid-cols-3 gap-6">
+                {plans.map((plan, index) => (
+                  <div key={index} className={`relative p-10 rounded-[3rem] transition-all duration-500 border-2 ${plan.popular ? 'bg-white border-blinkred scale-105 z-10' : 'bg-blinkblack border-white/10 hover:border-white/30'}`}>
+                    {plan.popular && (
+                      <span className="absolute -top-4 left-1/2 -translate-x-1/2 bg-blinkred text-white text-[10px] font-black px-6 py-2 rounded-full uppercase tracking-widest">Recommended</span>
+                    )}
+                    <h3 className={`text-3xl font-black uppercase tracking-tighter ${plan.popular ? 'text-black' : 'text-white'}`}>{plan.duration}</h3>
+                    <p className="text-blinkred font-black text-[10px] uppercase tracking-widest mt-2">{plan.tagline}</p>
+                    <div className="my-10">
+                      <span className={`text-6xl font-black tracking-tighter ${plan.popular ? 'text-black' : 'text-white'}`}>₹{plan.price}</span>
+                      <span className="text-gray-500 font-bold text-sm ml-2">/one-time</span>
+                    </div>
+                    <ul className="space-y-4 mb-10">
+                      {plan.features.map((f, i) => (
+                        <li key={i} className={`flex items-center gap-3 text-xs font-bold ${plan.popular ? 'text-gray-600' : 'text-gray-400'}`}>
+                          <CheckCircle size={16} className="text-blinkred" /> {f}
+                        </li>
+                      ))}
+                    </ul>
+                    <button onClick={() => handlePayment(plan)} className={`w-full py-5 rounded-2xl font-black uppercase tracking-widest text-[10px] transition-all ${plan.popular ? 'bg-blinkred text-white hover:bg-black' : 'bg-white text-black hover:bg-blinkred hover:text-white'}`}>Initialize Membership</button>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   );
 }
