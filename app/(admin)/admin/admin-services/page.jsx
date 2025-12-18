@@ -162,7 +162,7 @@ export default function AdminServices() {
     if (!serviceName.trim()) newErrors.serviceName = "Service name is required.";
     if (!servicePrice || parseFloat(servicePrice) <= 0) newErrors.servicePrice = "Price must be greater than 0.";
     const wordCount = serviceDescription.trim().split(/\s+/).filter(word => word).length;
-    if (wordCount <= 10) newErrors.serviceDescription = "Description must be more than 10 words.";
+    if (wordCount <= 1) newErrors.serviceDescription = "Description must be more than 10 words.";
     setErrors(prev => ({ ...prev, ...newErrors }));
     return Object.values(newErrors).every(error => !error);
   };
@@ -178,7 +178,7 @@ export default function AdminServices() {
     if (!subServiceName.trim()) newErrors.subServiceName = "Sub-service name is required.";
     if (!subServicePrice || parseFloat(subServicePrice) <= 0) newErrors.subServicePrice = "Price must be greater than 0.";
     const wordCount = subServiceDescription.trim().split(/\s+/).filter(word => word).length;
-    if (wordCount <= 10) newErrors.subServiceDescription = "Description must be more than 10 words.";
+    if (wordCount <= 1) newErrors.subServiceDescription = "Description must be more than 10 words.";
     setErrors(prev => ({ ...prev, ...newErrors }));
     return Object.values(newErrors).every(error => !error);
   };

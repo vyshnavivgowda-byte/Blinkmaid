@@ -33,22 +33,24 @@ export default function BigChangeMaidPopup() {
   }, []);
 
   // Step 2 — Popup animation time logic
-  useEffect(() => {
-    if (shouldShowPopup) {
+ useEffect(() => {
+  if (shouldShowPopup) {
+    setShow(true);
+
+    // Show popup for 1 minute 30 seconds
+    const hideTimer = setTimeout(() => setShow(false), 90000);
+
+    const repeatTimer = setInterval(() => {
       setShow(true);
+      setTimeout(() => setShow(false), 90000);
+    }, 90000); // repeat after popup finishes
 
-      const hideTimer = setTimeout(() => setShow(false), 8000);
-      const repeatTimer = setInterval(() => {
-        setShow(true);
-        setTimeout(() => setShow(false), 8000);
-      }, 30000);
-
-      return () => {
-        clearTimeout(hideTimer);
-        clearInterval(repeatTimer);
-      };
-    }
-  }, [shouldShowPopup]);
+    return () => {
+      clearTimeout(hideTimer);
+      clearInterval(repeatTimer);
+    };
+  }
+}, [shouldShowPopup]);
 
   if (!shouldShowPopup) return null;
 

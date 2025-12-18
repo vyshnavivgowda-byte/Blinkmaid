@@ -100,14 +100,28 @@ function CardContent({ children }) {
     return <div className="p-5">{children}</div>;
 }
 
+// Helper function to assign icons based on service name (customizable)
+const getServiceIcon = (name) => {
+    const lowerName = name.toLowerCase();
+    if (lowerName.includes('home') || lowerName.includes('cleaning')) return <HiOutlineHome size={40} className="text-red-600" />;
+    if (lowerName.includes('office')) return <HiOutlineOfficeBuilding size={40} className="text-red-600" />;
+    if (lowerName.includes('vehicle') || lowerName.includes('car')) return <HiOutlineTruck size={40} className="text-red-600" />;
+    if (lowerName.includes('maintenance') || lowerName.includes('repair')) return <HiOutlineCog size={40} className="text-red-600" />;
+    if (lowerName.includes('staff') || lowerName.includes('professional')) return <HiOutlineUserGroup size={40} className="text-red-600" />;
+    if (lowerName.includes('support')) return <HiSupport size={40} className="text-red-600" />;
+    return <HiOutlineSparkles size={40} className="text-red-600" />; // Default icon
+};
+
 // ✅ Main Home Page
 export default function Home() {
     const [imageError, setImageError] = useState(false);
     const [video2Error, setVideo2Error] = useState(false);
     const [testimonials, setTestimonials] = useState([]); // ✅ New state for testimonials
     const [loadingTestimonials, setLoadingTestimonials] = useState(true); // ✅ New state for loading
+    const [services, setServices] = useState([]); // ✅ New state for services
+    const [loadingServices, setLoadingServices] = useState(true); // ✅ New state for loading services
 
-    // --- Data Fetching Logic (New) ---
+    // --- Data Fetching Logic (Updated) ---
     useEffect(() => {
         const fetchTestimonials = async () => {
             try {
@@ -142,46 +156,35 @@ export default function Home() {
             }
         };
 
+        const fetchServices = async () => {
+            try {
+                // Fetch services: name and description (as per user request)
+                const { data, error } = await supabase
+                    .from("services")
+                    .select("name, description");
+
+                if (error) {
+                    console.error("Error fetching services:", error);
+                    toast.error("Failed to load services.");
+                    return;
+                }
+
+                setServices(data);
+            } catch (error) {
+                console.error("Unexpected error in fetchServices:", error);
+                toast.error("An unexpected error occurred while loading services.");
+            } finally {
+                setLoadingServices(false);
+            }
+        };
+
         fetchTestimonials();
+        fetchServices();
     }, []); // Run once on component mount
     // ---------------------------------
 
-    const services = [
-        {
-            icon: <HiOutlineHome size={40} className="text-red-600" />,
-            title: "Home Cleaning",
-            desc: "Spotless, fast, and eco-friendly home cleaning solutions.",
-        },
-        {
-            icon: <HiOutlineOfficeBuilding size={40} className="text-red-600" />,
-            title: "Office Cleaning",
-            desc: "Maintain a productive and hygienic workspace effortlessly.",
-        },
-        {
-            icon: <HiOutlineTruck size={40} className="text-red-600" />,
-            title: "Vehicle Cleaning",
-            desc: "Mobile car washing with advanced equipment and care.",
-        },
-        {
-            icon: <HiOutlineCog size={40} className="text-red-600" />,
-            title: "Maintenance",
-            desc: "AC repair, plumbing, and all-round property maintenance.",
-        },
-        {
-            icon: <HiOutlineUserGroup size={40} className="text-red-600" />,
-            title: "Professional Staff",
-            desc: "Trained, verified, and customer-friendly cleaning professionals.",
-        },
-        {
-            icon: <HiSupport size={40} className="text-red-600" />,
-            title: "24/7 Support",
-            desc: "We’re here for you anytime, anywhere.",
-        },
-    ];
-
-    // Removed the old hardcoded 'testimonials' array
-    // const hardcodedTestimonials = [...]
-
+    // Removed the old hardcoded 'services' array
+    // const services = [...]
 
     // ✅ Background image for hero (changed from video to image since it's a JPG)
     const bgImage = "/bg_pic.jpg"; // Hero section background image
@@ -250,7 +253,7 @@ export default function Home() {
             </section>
 
 
-            {/* Services Section (.... existing code ....) */}
+            {/* Services Section (UPDATED) */}
             <section id="services" className="relative bg-white py-20">
                 <div className="max-w-6xl mx-auto px-6">
                     <motion.h2
@@ -262,29 +265,39 @@ export default function Home() {
                         Our <span className="text-red-600">Services</span>
                     </motion.h2>
 
-                    <Carousel className="relative">
-                        <CarouselContent>
-                            {services.map((s, i) => (
-                                <CarouselItem key={i}>
-                                    <motion.div
-                                        initial={{ opacity: 0, scale: 0.9 }}
-                                        whileInView={{ opacity: 1, scale: 1 }}
-                                        transition={{ delay: i * 0.1, duration: 0.5 }}
-                                    >
-                                        <Card className="border-none shadow-lg hover:shadow-xl transition">
-                                            <CardContent>
-                                                <div className="flex flex-col items-center text-center space-y-4 py-6">
-                                                    <div className="bg-red-100 p-5 rounded-full">{s.icon}</div>
-                                                    <h3 className="text-xl font-semibold">{s.title}</h3>
-                                                    <p className="text-gray-600">{s.desc}</p>
-                                                </div>
-                                            </CardContent>
-                                        </Card>
-                                    </motion.div>
-                                </CarouselItem>
-                            ))}
-                        </CarouselContent>
-                    </Carousel>
+                    {loadingServices && (
+                        <p className="text-center text-xl text-gray-600">Loading services...</p>
+                    )}
+
+                    {!loadingServices && services.length === 0 && (
+                        <p className="text-center text-xl text-gray-600">No services available.</p>
+                    )}
+
+                    {!loadingServices && services.length > 0 && (
+                        <Carousel className="relative">
+                            <CarouselContent>
+                                {services.map((s, i) => (
+                                    <CarouselItem key={i}>
+                                        <motion.div
+                                            initial={{ opacity: 0, scale: 0.9 }}
+                                            whileInView={{ opacity: 1, scale: 1 }}
+                                            transition={{ delay: i * 0.1, duration: 0.5 }}
+                                        >
+                                            <Card className="border-none shadow-lg hover:shadow-xl transition">
+                                                <CardContent>
+                                                    <div className="flex flex-col items-center text-center space-y-4 py-6">
+                                                        <div className="bg-red-100 p-5 rounded-full">{getServiceIcon(s.name)}</div>
+                                                        <h3 className="text-xl font-semibold">{s.name}</h3>
+                                                        <p className="text-gray-600">{s.description}</p>
+                                                    </div>
+                                                </CardContent>
+                                            </Card>
+                                        </motion.div>
+                                    </CarouselItem>
+                                ))}
+                            </CarouselContent>
+                        </Carousel>
+                    )}
                 </div>
             </section>
 

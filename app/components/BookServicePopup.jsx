@@ -48,12 +48,13 @@ export default function BigBookNewServicePopup() {
 
     setShow(true);
 
-    const hideTimer = setTimeout(() => setShow(false), 8000);
+    // Show popup for 1 minute 30 seconds
+    const hideTimer = setTimeout(() => setShow(false), 90000);
 
     const repeatTimer = setInterval(() => {
       setShow(true);
-      setTimeout(() => setShow(false), 8000);
-    }, 30000);
+      setTimeout(() => setShow(false), 90000);
+    }, 30000); // repeat every 30 sec (you can change this too)
 
     return () => {
       clearTimeout(hideTimer);
