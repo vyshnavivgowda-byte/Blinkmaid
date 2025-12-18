@@ -21,6 +21,9 @@ export default function EnquiriesDashboard() {
   const [deleteId, setDeleteId] = useState(null);
   const { showToast } = useToast();
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const rowsPerPage = 10; // change this to show more/less per page
 
   const handleView = (enq) => {
     setSelectedEnquiry(enq);
@@ -59,8 +62,6 @@ export default function EnquiriesDashboard() {
     }
   };
 
-
-
   // 🔹 Download as Excel
   const handleDownloadExcel = () => {
     const worksheet = XLSX.utils.json_to_sheet(
@@ -97,7 +98,7 @@ export default function EnquiriesDashboard() {
       body: tableRows,
       startY: 20,
       styles: { fontSize: 10, cellPadding: 2 },
-      columnStyles: { 3: { cellWidth: 70 } }, // limit message column width
+      columnStyles: { 3: { cellWidth: 70 } },
     });
 
     doc.save("enquiries_data.pdf");
@@ -111,6 +112,13 @@ export default function EnquiriesDashboard() {
       .includes(search.toLowerCase())
   );
 
+  // 🔹 Pagination calculations
+  const totalPages = Math.ceil(filteredEnquiries.length / rowsPerPage);
+  const paginatedEnquiries = filteredEnquiries.slice(
+    (currentPage - 1) * rowsPerPage,
+    currentPage * rowsPerPage
+  );
+
   // 🔹 Stats
   const totalEnquiries = enquiries.length;
   const recentEnquiries = enquiries.filter(
@@ -121,7 +129,7 @@ export default function EnquiriesDashboard() {
   const uniqueUsers = new Set(enquiries.map((e) => e.email)).size;
 
   return (
-    <div className="min-h-screen w-full flex flex-col overflow-hidden bg-gray-100 text-gray-900">
+    <div className="min-h-screen w-full flex flex-col overflow-hidden text-gray-900">
       {/* 🔴 Header */}
       <header className="bg-gradient-to-r from-red-700 to-black px-8 py-6 rounded-b-2xl shadow-md text-white">
         <h1 className="text-4xl font-extrabold tracking-tight">
@@ -132,8 +140,8 @@ export default function EnquiriesDashboard() {
         </p>
       </header>
 
-      <main className="flex-grow px-8 py-10 bg-gray-100 space-y-10">
-        {/* 🔹 Stats Section (Gray cards, red icons) */}
+      <main className="flex-grow px-8 py-10 space-y-10">
+        {/* 🔹 Stats Section */}
         <section className="grid grid-cols-1 sm:grid-cols-3 gap-6">
           {[
             { icon: ClipboardList, title: "Total Enquiries", value: totalEnquiries },
@@ -144,7 +152,7 @@ export default function EnquiriesDashboard() {
             return (
               <div
                 key={i}
-                className="relative group bg-gradient-to-br from-gray-100 to-gray-200 p-6 rounded-2xl shadow-md hover:shadow-xl hover:scale-[1.02] transition-all duration-300 border border-gray-300"
+                className="relative group p-6 rounded-2xl shadow-md hover:shadow-xl hover:scale-[1.02] transition-all duration-300 border border-gray-300"
               >
                 <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-red-500 to-red-700 opacity-0 group-hover:opacity-10 transition duration-300"></div>
                 <div className="flex items-center justify-between">
@@ -153,9 +161,7 @@ export default function EnquiriesDashboard() {
                   </div>
                   <p className="text-3xl font-bold text-gray-900">{item.value}</p>
                 </div>
-                <p className="mt-3 text-gray-700 font-semibold text-lg">
-                  {item.title}
-                </p>
+                <p className="mt-3 text-gray-700 font-semibold text-lg">{item.title}</p>
               </div>
             );
           })}
@@ -175,7 +181,10 @@ export default function EnquiriesDashboard() {
                   placeholder="Search by name, email, or message..."
                   className="border border-gray-300 rounded-xl pl-10 pr-4 py-2 bg-gray-100 text-gray-900 focus:ring-2 focus:ring-red-400 outline-none w-full sm:w-80"
                   value={search}
-                  onChange={(e) => setSearch(e.target.value)}
+                  onChange={(e) => {
+                    setSearch(e.target.value);
+                    setCurrentPage(1); // Reset page when search changes
+                  }}
                 />
               </div>
 
@@ -194,7 +203,6 @@ export default function EnquiriesDashboard() {
                 </button>
               </div>
             </div>
-
           </div>
 
           <div className="overflow-x-auto rounded-xl border border-gray-200 shadow-inner">
@@ -216,7 +224,7 @@ export default function EnquiriesDashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredEnquiries.length === 0 ? (
+                  {paginatedEnquiries.length === 0 ? (
                     <tr>
                       <td colSpan="6" className="py-8 text-center text-gray-500">
                         <Search className="inline-block w-5 h-5 mr-2 text-gray-400" />
@@ -224,27 +232,15 @@ export default function EnquiriesDashboard() {
                       </td>
                     </tr>
                   ) : (
-                    filteredEnquiries.map((enq, i) => (
-                      <tr
-                        key={enq.id}
-                        className="border-b hover:bg-gray-50 transition"
-                      >
-                        <td className="px-6 py-4">{i + 1}</td>
-                        <td className="px-6 py-4 font-medium text-gray-900">
-                          {enq.full_name}
-                        </td>
+                    paginatedEnquiries.map((enq, i) => (
+                      <tr key={enq.id} className="border-b hover:bg-gray-50 transition">
+                        <td className="px-6 py-4">{(currentPage - 1) * rowsPerPage + i + 1}</td>
+                        <td className="px-6 py-4 font-medium text-gray-900">{enq.full_name}</td>
                         <td className="px-6 py-4">{enq.email}</td>
-                        <td className="px-6 py-4 max-w-xs truncate">
-                          {enq.message}
-                        </td>
-                        <td className="px-6 py-4">
-                          {new Date(enq.created_at).toLocaleDateString()}
-                        </td>
+                        <td className="px-6 py-4 max-w-xs truncate">{enq.message}</td>
+                        <td className="px-6 py-4">{new Date(enq.created_at).toLocaleDateString()}</td>
                         <td className="px-6 py-4 flex justify-center gap-3">
-                          <button
-                            className="text-blue-600 hover:text-blue-500"
-                            onClick={() => handleView(enq)}
-                          >
+                          <button className="text-blue-600 hover:text-blue-500" onClick={() => handleView(enq)}>
                             <Eye size={18} />
                           </button>
                           <button
@@ -256,7 +252,6 @@ export default function EnquiriesDashboard() {
                           >
                             <Trash2 size={18} />
                           </button>
-
                         </td>
                       </tr>
                     ))
@@ -266,15 +261,43 @@ export default function EnquiriesDashboard() {
             )}
           </div>
 
+          {/* 🔹 Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="flex justify-end mt-4 gap-2 items-center">
+              <button
+                className="px-3 py-1 border rounded disabled:opacity-50"
+                onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+                disabled={currentPage === 1}
+              >
+                Prev
+              </button>
+              {Array.from({ length: totalPages }, (_, i) => (
+                <button
+                  key={i}
+                  className={`px-3 py-1 border rounded ${currentPage === i + 1 ? "bg-red-600 text-white border-red-600" : ""}`}
+                  onClick={() => setCurrentPage(i + 1)}
+                >
+                  {i + 1}
+                </button>
+              ))}
+              <button
+                className="px-3 py-1 border rounded disabled:opacity-50"
+                onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+                disabled={currentPage === totalPages}
+              >
+                Next
+              </button>
+            </div>
+          )}
+
+          {/* 🔹 Delete Modal */}
           {showDeleteModal && (
             <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50">
               <div className="bg-white p-6 rounded-xl shadow-xl w-full max-w-sm">
-
                 <h2 className="text-xl font-bold text-gray-900 mb-3">Delete Enquiry?</h2>
                 <p className="text-gray-600 mb-6">
                   Are you sure you want to delete this enquiry? This action cannot be undone.
                 </p>
-
                 <div className="flex justify-end gap-3">
                   <button
                     className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100"
@@ -282,59 +305,45 @@ export default function EnquiriesDashboard() {
                   >
                     Cancel
                   </button>
-
                   <button
                     className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700"
                     onClick={handleDeleteFinal}
                   >
                     Delete
                   </button>
-
                 </div>
-
               </div>
             </div>
           )}
 
-
+          {/* 🔹 View Modal */}
           {showModal && selectedEnquiry && (
             <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
               <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-lg relative">
-
-                {/* Close button */}
                 <button
                   onClick={() => setShowModal(false)}
                   className="absolute top-3 right-3 text-gray-600 hover:text-red-600 text-xl"
                 >
                   ✕
                 </button>
-
                 <h2 className="text-2xl font-bold text-gray-900 mb-4">Enquiry Details</h2>
-
                 <div className="space-y-3 text-gray-800">
-
                   <p><strong>Name:</strong> {selectedEnquiry.full_name}</p>
                   <p><strong>Email:</strong> {selectedEnquiry.email}</p>
                   <p><strong>Phone:</strong> {selectedEnquiry.phone_number}</p>
-
                   <p><strong>Number of Workers:</strong> {selectedEnquiry.number_of_workers}</p>
                   <p><strong>Type of Work:</strong> {selectedEnquiry.type_of_work}</p>
-
                   {selectedEnquiry.preferred_contact_time && (
                     <p><strong>Preferred Contact Time:</strong> {selectedEnquiry.preferred_contact_time}</p>
                   )}
-
-                  <p><strong>Message:</strong>
+                  <p>
+                    <strong>Message:</strong>
                     <span className="block mt-1 bg-gray-100 p-3 rounded-lg">
                       {selectedEnquiry.message || "No message provided"}
                     </span>
                   </p>
-
-                  <p><strong>Date:</strong>
-                    {new Date(selectedEnquiry.created_at).toLocaleString()}
-                  </p>
+                  <p><strong>Date:</strong> {new Date(selectedEnquiry.created_at).toLocaleString()}</p>
                 </div>
-
                 <div className="mt-5 text-right">
                   <button
                     onClick={() => setShowModal(false)}
@@ -346,7 +355,6 @@ export default function EnquiriesDashboard() {
               </div>
             </div>
           )}
-
         </section>
       </main>
     </div>
