@@ -11,6 +11,10 @@ export default function AdminUsersTable() {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const usersPerPage = 10;
+
   // Fetch Users from API
   useEffect(() => {
     const fetchUsers = async () => {
@@ -30,6 +34,17 @@ export default function AdminUsersTable() {
     const email = u.email || "";
     return `${name} ${email}`.toLowerCase().includes(search.toLowerCase());
   });
+
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredUsers.length / usersPerPage);
+  const startIndex = (currentPage - 1) * usersPerPage;
+  const endIndex = startIndex + usersPerPage;
+  const currentUsers = filteredUsers.slice(startIndex, endIndex);
+
+  const handlePageChange = (page) => {
+    if (page < 1 || page > totalPages) return;
+    setCurrentPage(page);
+  };
 
   // Excel Download
   const handleDownloadExcel = () => {
@@ -87,7 +102,7 @@ export default function AdminUsersTable() {
   const subscribedUsers = users.filter((u) => u.subscribed).length;
 
   return (
-    <div className="min-h-screen w-full flex flex-col bg-gray-100 text-gray-900">
+    <div className="min-h-screen w-full flex flex-col text-gray-900">
       {/* HEADER */}
       <header className="bg-gradient-to-r from-red-700 to-black px-8 py-6 rounded-b-2xl shadow-md text-white">
         <h1 className="text-4xl font-extrabold tracking-tight">
@@ -99,8 +114,7 @@ export default function AdminUsersTable() {
       </header>
 
       {/* MAIN CONTENT */}
-      <main className="flex-grow px-8 py-10 bg-gray-100 space-y-10">
-
+      <main className="flex-grow px-8 py-10 space-y-10">
         {/* STATS */}
         <section className="grid grid-cols-1 sm:grid-cols-3 gap-6">
           {[
@@ -110,7 +124,7 @@ export default function AdminUsersTable() {
           ].map((item, i) => (
             <div
               key={i}
-              className="relative group bg-gradient-to-br from-gray-100 to-gray-200 p-6 rounded-2xl 
+              className="relative group  p-6 rounded-2xl 
               shadow-md hover:shadow-xl hover:scale-[1.02] transition-all duration-300 border border-gray-300"
             >
               <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-red-500 to-red-700 
@@ -130,7 +144,6 @@ export default function AdminUsersTable() {
 
         {/* USER TABLE */}
         <section className="bg-white border border-gray-300 rounded-2xl p-8 shadow-md">
-
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
             <h2 className="flex items-center gap-2 text-2xl font-semibold text-gray-900">
               <Users className="text-red-600 w-6 h-6" />
@@ -146,7 +159,10 @@ export default function AdminUsersTable() {
                   className="border border-gray-300 rounded-xl pl-10 pr-4 py-2 bg-gray-100 
                     text-gray-900 focus:ring-2 focus:ring-red-400 outline-none w-full sm:w-80"
                   value={search}
-                  onChange={(e) => setSearch(e.target.value)}
+                  onChange={(e) => {
+                    setSearch(e.target.value);
+                    setCurrentPage(1); // Reset page on search
+                  }}
                 />
               </div>
 
@@ -191,7 +207,7 @@ export default function AdminUsersTable() {
                 </thead>
 
                 <tbody>
-                  {filteredUsers.length === 0 ? (
+                  {currentUsers.length === 0 ? (
                     <tr>
                       <td colSpan="6" className="py-8 text-center text-gray-500">
                         <Search className="inline-block w-5 h-5 mr-2 text-gray-400" />
@@ -199,7 +215,7 @@ export default function AdminUsersTable() {
                       </td>
                     </tr>
                   ) : (
-                    filteredUsers.map((u) => (
+                    currentUsers.map((u) => (
                       <tr
                         key={u.id}
                         className="border-b hover:bg-gray-50 transition"
@@ -231,6 +247,79 @@ export default function AdminUsersTable() {
               </table>
             )}
           </div>
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex justify-center items-center gap-2 mt-4 flex-wrap">
+              <button
+                onClick={() => goToPage(currentPage - 1)}
+                disabled={currentPage === 1}
+                className={`px-3 py-1 rounded border transition ${currentPage === 1 ? "bg-gray-200 cursor-not-allowed" : "hover:bg-gray-100"
+                  }`}
+              >
+                Previous
+              </button>
+
+              {[...Array(totalPages)].map((_, i) => {
+                const pageNum = i + 1;
+                return (
+                  <button
+                    key={i}
+                    onClick={() => goToPage(pageNum)}
+                    className={`px-3 py-1 rounded border transition ${currentPage === pageNum
+                        ? "bg-red-600 text-white border-red-600"
+                        : "hover:bg-gray-100"
+                      }`}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              })}
+
+              <button
+                onClick={() => goToPage(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className={`px-3 py-1 rounded border transition ${currentPage === totalPages ? "bg-gray-200 cursor-not-allowed" : "hover:bg-gray-100"
+                  }`}
+              >
+                Next
+              </button>
+            </div>
+          )}
+
+
+          {/* PAGINATION */}
+          {totalPages > 1 && (
+            <div className="flex justify-center items-center gap-3 mt-4">
+              <button
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="px-3 py-1 rounded-lg bg-gray-200 hover:bg-gray-300 disabled:opacity-50"
+              >
+                Previous
+              </button>
+
+              {Array.from({ length: totalPages }, (_, i) => (
+                <button
+                  key={i + 1}
+                  onClick={() => handlePageChange(i + 1)}
+                  className={`px-3 py-1 rounded-lg ${currentPage === i + 1
+                      ? "bg-red-600 text-white"
+                      : "bg-gray-200 hover:bg-gray-300"
+                    }`}
+                >
+                  {i + 1}
+                </button>
+              ))}
+
+              <button
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className="px-3 py-1 rounded-lg bg-gray-200 hover:bg-gray-300 disabled:opacity-50"
+              >
+                Next
+              </button>
+            </div>
+          )}
         </section>
       </main>
     </div>

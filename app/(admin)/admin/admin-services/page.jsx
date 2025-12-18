@@ -22,7 +22,6 @@ export default function AdminServices() {
   const [selectedService, setSelectedService] = useState("");
   const [subServiceName, setSubServiceName] = useState("");
   const [subServicePrice, setSubServicePrice] = useState("");
-  const [subServiceDescription, setSubServiceDescription] = useState("");
   const [questions, setQuestions] = useState([]);
   const [showQuestionModal, setShowQuestionModal] = useState(false);
   const [newQuestion, setNewQuestion] = useState("");
@@ -50,7 +49,6 @@ export default function AdminServices() {
     selectedService: "",
     subServiceName: "",
     subServicePrice: "",
-    subServiceDescription: "",
     question: "",
     options: "",
   });
@@ -58,6 +56,9 @@ export default function AdminServices() {
   // New states for delete modal
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
+  const [serviceImage, setServiceImage] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
+
 
   const handleAddQuestion = async () => {
     const { error } = await supabase
@@ -101,6 +102,31 @@ export default function AdminServices() {
   useEffect(() => {
     fetchData();
   }, []);
+
+
+  const uploadServiceImage = async (file) => {
+    const fileExt = file.name.split(".").pop();
+    const fileName = `service-${Date.now()}.${fileExt}`;
+    const filePath = fileName;
+
+    const { error } = await supabase.storage
+      .from("service-images")
+      .upload(filePath, file, {
+        cacheControl: "3600",
+        upsert: false,
+      });
+
+    if (error) {
+      console.error(error);
+      throw error;
+    }
+
+    const { data } = supabase.storage
+      .from("service-images")
+      .getPublicUrl(filePath);
+
+    return data.publicUrl;
+  };
 
   // 🔹 Download Services as Excel
   const handleDownloadExcel = () => {
@@ -162,7 +188,7 @@ export default function AdminServices() {
     if (!serviceName.trim()) newErrors.serviceName = "Service name is required.";
     if (!servicePrice || parseFloat(servicePrice) <= 0) newErrors.servicePrice = "Price must be greater than 0.";
     const wordCount = serviceDescription.trim().split(/\s+/).filter(word => word).length;
-    if (wordCount <= 1) newErrors.serviceDescription = "Description must be more than 10 words.";
+    if (wordCount <= 1) newErrors.serviceDescription = "Description must be more than 10 letters.";
     setErrors(prev => ({ ...prev, ...newErrors }));
     return Object.values(newErrors).every(error => !error);
   };
@@ -177,8 +203,6 @@ export default function AdminServices() {
     if (!selectedService) newErrors.selectedService = "Please select a service.";
     if (!subServiceName.trim()) newErrors.subServiceName = "Sub-service name is required.";
     if (!subServicePrice || parseFloat(subServicePrice) <= 0) newErrors.subServicePrice = "Price must be greater than 0.";
-    const wordCount = subServiceDescription.trim().split(/\s+/).filter(word => word).length;
-    if (wordCount <= 1) newErrors.subServiceDescription = "Description must be more than 10 words.";
     setErrors(prev => ({ ...prev, ...newErrors }));
     return Object.values(newErrors).every(error => !error);
   };
@@ -197,25 +221,43 @@ export default function AdminServices() {
   // --- Add Service ---
   const addService = async () => {
     if (!validateServiceForm()) return;
-    const { error } = await supabase.from("services").insert([
-      {
-        name: serviceName,
-        city_id: selectedCity,
-        price: parseFloat(servicePrice),
-        description: serviceDescription,
-      },
-    ]);
-    if (error) console.error(error);
-    else {
+
+    try {
+      let imageUrl = null;
+
+      if (serviceImage) {
+        imageUrl = await uploadServiceImage(serviceImage);
+      }
+
+      const { error } = await supabase.from("services").insert([
+        {
+          name: serviceName,
+          city_id: selectedCity,
+          price: parseFloat(servicePrice),
+          description: serviceDescription,
+          image_url: imageUrl,
+        },
+      ]);
+
+      if (error) throw error;
+
       showToast("Service added successfully!", "success");
+
+      // Reset
       setServiceName("");
       setServicePrice("");
       setServiceDescription("");
       setSelectedCity("");
-      setErrors(prev => ({ ...prev, selectedCity: "", serviceName: "", servicePrice: "", serviceDescription: "" }));
+      setServiceImage(null);
+      setImagePreview(null);
+
       fetchData();
+    } catch (err) {
+      console.error(err);
+      showToast("Failed to add service", "error");
     }
   };
+
 
   // --- Add Sub-Service ---
   const addSubService = async () => {
@@ -229,7 +271,6 @@ export default function AdminServices() {
           service_id: selectedService,
           name: subServiceName,
           price: parseFloat(subServicePrice),
-          description: subServiceDescription,
         },
       ])
       .select()
@@ -262,10 +303,14 @@ export default function AdminServices() {
     showToast("Sub-Service added successfully!", "success");
     setSubServiceName("");
     setSubServicePrice("");
-    setSubServiceDescription("");
     setSelectedService("");
     setQuestions([]);
     setErrors(prev => ({ ...prev, selectedService: "", subServiceName: "", subServicePrice: "", subServiceDescription: "" }));
+  };
+
+  const removeServiceImage = () => {
+    setServiceImage(null);
+    setImagePreview(null);
   };
 
   // Add new option
@@ -359,7 +404,7 @@ export default function AdminServices() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 text-gray-900">
+    <div className="min-h-screen text-gray-900">
       {/* Header */}
       <header className="bg-gradient-to-r from-red-700 to-gray-900 text-white px-8 py-10 rounded-b-3xl shadow-lg">
         <h1 className="text-4xl font-extrabold tracking-tight">
@@ -382,7 +427,7 @@ export default function AdminServices() {
           return (
             <div
               key={i}
-              className="relative group bg-gradient-to-br from-gray-100 to-gray-200 p-6 rounded-2xl shadow-md hover:shadow-xl hover:scale-[1.02] transition-all duration-300 border border-gray-300"
+              className="relative group p-6 rounded-2xl shadow-md hover:shadow-xl hover:scale-[1.02] transition-all duration-300 border border-gray-300"
             >
               {/* Hover Red Glow Layer */}
               <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-red-500 to-red-700 opacity-0 group-hover:opacity-10 transition duration-300"></div>
@@ -425,7 +470,7 @@ export default function AdminServices() {
                 label: "Service Name",
                 type: "text",
                 value: serviceName,
-                onChange: (e) =>setServiceName(e.target.value),
+                onChange: (e) => setServiceName(e.target.value),
                 error: errors.serviceName,
               },
               {
@@ -442,6 +487,21 @@ export default function AdminServices() {
                 onChange: (e) => setServiceDescription(e.target.value),
                 error: errors.serviceDescription,
               },
+              {
+                label: "Service Image",
+                type: "file",
+                value: "",
+                onChange: (e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    setServiceImage(file);
+                    setImagePreview(URL.createObjectURL(file));
+                  }
+                },
+                error: "",
+              },
+
+
             ].map((field, idx) => (
               <div key={idx} className="flex flex-col">
                 <label className="text-gray-700 font-medium mb-2">{field.label}</label>
@@ -450,7 +510,7 @@ export default function AdminServices() {
                   <select
                     value={field.value}
                     onChange={field.onChange}
-                    className="p-3 rounded-xl bg-gray-50 border border-gray-300 focus:ring-2 focus:ring-red-500"
+                    className="w-full p-3 rounded-xl bg-gray-50 border border-gray-300 focus:border-red-500 focus:ring-2 focus:ring-red-200 transition outline-none"
                   >
                     <option value="">Select</option>
                     {field.options.map((o) => (
@@ -459,6 +519,38 @@ export default function AdminServices() {
                       </option>
                     ))}
                   </select>
+                ) : field.type === "file" ? (
+                  <>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={field.onChange}
+                      className="w-full p-3 rounded-xl bg-gray-50 border border-gray-300 focus:border-red-500 focus:ring-2 focus:ring-red-200 transition cursor-pointer"
+                    />
+
+                    {imagePreview && (
+                      <div className="relative mt-3">
+                        <img
+                          src={imagePreview}
+                          alt="Service Preview"
+                          className="h-32 w-full object-cover rounded-xl border shadow-sm"
+                        />
+
+                        {/* Remove Button */}
+                        <button
+                          type="button"
+                          onClick={removeServiceImage}
+                          className="absolute top-2 right-2 bg-black/70 text-white rounded-full p-1 hover:bg-red-600 transition-all duration-200"
+                          title="Remove image"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    )}
+
+
+
+                  </>
                 ) : (
                   <input
                     type={field.type}
@@ -468,6 +560,7 @@ export default function AdminServices() {
                     className="p-3 rounded-xl bg-gray-50 border border-gray-300 focus:ring-2 focus:ring-red-500"
                   />
                 )}
+
                 {field.error && <p className="text-red-500 text-sm mt-1">{field.error}</p>}
               </div>
             ))}
@@ -495,7 +588,7 @@ export default function AdminServices() {
           <div className="flex gap-6 overflow-x-auto pb-4">
 
             {/* Select Service */}
-            <div className="flex flex-col min-w-[250px]">
+            <div className="flex flex-col min-w-[350px]">
               <label className="text-gray-700 font-medium mb-2">Select Service (with City)</label>
               <select
                 value={selectedService}
@@ -516,8 +609,8 @@ export default function AdminServices() {
             </div>
 
             {/* Sub-Service Name */}
-            <div className="flex flex-col min-w-[250px]">
-              <label className="text-gray-700 font-medium mb-2">Sub-Service Name</label>
+            <div className="flex flex-col min-w-[350px]">
+              <label className="text-gray-700 font-medium mb-2">Plan</label>
               <input
                 type="text"
                 value={subServiceName}
@@ -529,7 +622,7 @@ export default function AdminServices() {
             </div>
 
             {/* Price */}
-            <div className="flex flex-col min-w-[200px]">
+            <div className="flex flex-col min-w-[300px]">
               <label className="text-gray-700 font-medium mb-2">Price (₹)</label>
               <input
                 type="number"
@@ -539,19 +632,6 @@ export default function AdminServices() {
                 className="p-3 rounded-xl bg-gray-50 border border-gray-300 focus:ring-2 focus:ring-red-500"
               />
               {errors.subServicePrice && <p className="text-red-500 text-sm mt-1">{errors.subServicePrice}</p>}
-            </div>
-
-            {/* Description */}
-            <div className="flex flex-col min-w-[350px]">
-              <label className="text-gray-700 font-medium mb-2">Description</label>
-              <input
-                type="text"
-                value={subServiceDescription}
-                onChange={(e) => setSubServiceDescription(e.target.value)}
-                placeholder="Enter Description"
-                className="p-3 rounded-xl bg-gray-50 border border-gray-300 focus:ring-2 focus:ring-red-500"
-              />
-              {errors.subServiceDescription && <p className="text-red-500 text-sm mt-1">{errors.subServiceDescription}</p>}
             </div>
 
           </div>
@@ -721,105 +801,7 @@ export default function AdminServices() {
         </div>
       )}
 
-      {/* 🧾 Service List Table */}
-      <section className="px-8 mt-6 mb-10">
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6">
-          {/* 🔹 Table Header with Title + Export Buttons */}
-          <div className="flex flex-col sm:flex-row justify-between items-center bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200 px-8 py-4 rounded-t-2xl">
-            <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-              <Wrench className="text-red-600 bg-red-100 p-2 rounded-lg" size={28} />
-              Service List
-            </h2>
 
-            <div className="flex gap-3 mt-4 sm:mt-0">
-              <button
-                onClick={handleDownloadExcel}
-                disabled={services.length === 0}
-                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold transition-all shadow-sm ${services.length === 0
-                  ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                  : "bg-green-600 hover:bg-green-700 text-white"
-                  }`}
-              >
-                <FileSpreadsheet size={18} />
-                Excel
-              </button>
-
-              <button
-                onClick={handleDownloadPDF}
-                disabled={services.length === 0}
-                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold transition-all shadow-sm ${services.length === 0
-                  ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                  : "bg-red-600 hover:bg-red-700 text-white"
-                  }`}
-              >
-                <FileDown size={18} />
-                PDF
-              </button>
-            </div>
-          </div>
-
-          {/* Table */}
-          <div className="overflow-x-auto rounded-xl border border-gray-200 bg-gray-50">
-            <table className="min-w-full text-sm text-gray-800">
-              <thead className="bg-gray-100 text-gray-700 uppercase text-xs font-semibold border-b">
-                <tr>
-                  <th className="px-6 py-3 text-left">#</th>
-                  <th className="px-6 py-3 text-left">City</th>
-                  <th className="px-6 py-3 text-left">Service Name</th>
-                  <th className="px-6 py-3 text-left">Price</th>
-                  <th className="px-6 py-3 text-left">Description</th>
-                  <th className="px-6 py-3 text-center">Actions</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {services.length === 0 ? (
-                  <tr>
-                    <td colSpan="6" className="py-8 text-center text-gray-500">
-                      <Eye className="inline-block w-5 h-5 mr-2 text-gray-400" />
-                      No services found
-                    </td>
-                  </tr>
-                ) : (
-                  services.map((service, i) => {
-                    const city = cities.find((c) => c.id === service.city_id);
-                    return (
-                      <tr
-                        key={service.id}
-                        className="border-b hover:bg-gray-50 transition"
-                      >
-                        <td className="px-6 py-4 font-medium text-gray-900">
-                          {i + 1}
-                        </td>
-                        <td className="px-6 py-4">{city ? city.name : "—"}</td>
-                        <td className="px-6 py-4 font-semibold text-gray-900">
-                          {service.name}
-                        </td>
-                        <td className="px-6 py-4">₹{service.price}</td>
-                        <td className="px-6 py-4">{service.description}</td>
-                        <td className="px-6 py-4 flex justify-center gap-3">
-                          <button
-                            className="text-blue-600 hover:text-blue-500"
-                            onClick={() => handleViewService(service.id)}
-                          >
-                            <Eye size={18} />
-                          </button>
-                          <button
-                            className="text-red-600 hover:text-red-500"
-                            onClick={() => handleDelete(service.id)}
-                          >
-                            <Trash2 size={18} />
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </section>
 
       {/* White footer gap */}
       <div className="bg-white h-24 mt-10 rounded-t-2xl"></div>

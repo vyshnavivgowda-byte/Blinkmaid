@@ -25,10 +25,13 @@ export default function ServiceBookings() {
   const [showDeletePopup, setShowDeletePopup] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
 
-  // Toast
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
+
   const { showToast } = useToast();
 
-  // 🔹 Fetch all bookings
+  // Fetch all bookings
   const fetchBookings = async () => {
     setLoading(true);
     const { data, error } = await supabase
@@ -44,42 +47,45 @@ export default function ServiceBookings() {
     fetchBookings();
   }, []);
 
-  // 🔹 Open popup
   const confirmDelete = (id) => {
     setDeleteId(id);
     setShowDeletePopup(true);
   };
 
-  // 🔹 Delete booking
   const handleDelete = async () => {
+    if (!deleteId) return;
     const { error } = await supabase.from("bookings").delete().eq("id", deleteId);
-
     if (!error) {
       showToast("Booking deleted successfully!", "success");
       fetchBookings();
     } else {
       showToast("Failed to delete booking!", "error");
     }
-
     setShowDeletePopup(false);
     setDeleteId(null);
   };
 
-  // 🔹 Filter bookings
+  // Filter bookings
   const filteredBookings = bookings.filter((b) =>
-    [
-      b.service_name,
-      b.sub_service_name,
-      b.city,
-      b.final_amount,
-      b.total_price,
-    ]
+    [b.service_name, b.sub_service_name, b.city, b.final_amount, b.total_price]
       .join(" ")
       .toLowerCase()
       .includes(search.toLowerCase())
   );
 
-  // 🔹 Download Excel
+  // Pagination logic
+  const totalPages = Math.ceil(filteredBookings.length / itemsPerPage);
+  const paginatedBookings = filteredBookings.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  const goToPage = (page) => {
+    if (page < 1 || page > totalPages) return;
+    setCurrentPage(page);
+  };
+
+  // Download Excel
   const handleDownloadExcel = () => {
     const worksheet = XLSX.utils.json_to_sheet(
       bookings.map((b) => ({
@@ -98,11 +104,10 @@ export default function ServiceBookings() {
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Bookings");
     XLSX.writeFile(workbook, "service_bookings.xlsx");
-
     showToast("Excel downloaded!", "success");
   };
 
-  // 🔹 Download PDF
+  // Download PDF
   const handleDownloadPDF = () => {
     const doc = new jsPDF();
     doc.text("Service Bookings", 14, 15);
@@ -138,18 +143,14 @@ export default function ServiceBookings() {
     showToast("PDF downloaded!", "success");
   };
 
-  // 🔹 Stats
+  // Stats
   const totalBookings = bookings.length;
-  const totalRevenue = bookings.reduce(
-    (sum, b) => sum + (b.final_amount || 0),
-    0
-  );
-  const avgAmount =
-    totalBookings > 0 ? (totalRevenue / totalBookings).toFixed(2) : 0;
+  const totalRevenue = bookings.reduce((sum, b) => sum + (b.final_amount || 0), 0);
+  const avgAmount = totalBookings > 0 ? (totalRevenue / totalBookings).toFixed(2) : 0;
 
   return (
-    <div className="min-h-screen w-full flex flex-col overflow-hidden bg-gray-100 text-gray-900">
-      {/* 🔴 Header */}
+    <div className="min-h-screen w-full flex flex-col overflow-hidden  text-gray-900">
+      {/* Header */}
       <header className="bg-gradient-to-r from-red-700 to-black px-8 py-6 flex-shrink-0 rounded-b-2xl shadow-md text-white">
         <h1 className="text-4xl font-extrabold tracking-tight">
           Service <span className="text-white">Bookings</span>
@@ -159,20 +160,18 @@ export default function ServiceBookings() {
         </p>
       </header>
 
-      {/* 🧾 Main Content */}
-      <main className="flex-grow px-8 py-10 bg-gray-100 space-y-10">
-        {/* 🔹 Stats Section */}
+      <main className="flex-grow px-8 py-10 space-y-10">
+        {/* Stats */}
         <section className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-          {[
-            { icon: ClipboardList, title: "Total Bookings", value: totalBookings },
+          {[{ icon: ClipboardList, title: "Total Bookings", value: totalBookings },
             { icon: DollarSign, title: "Total Revenue", value: `₹${totalRevenue.toLocaleString()}` },
-            { icon: Percent, title: "Avg Amount", value: `₹${avgAmount}` },
+            { icon: Percent, title: "Avg Amount", value: `₹${avgAmount}` }
           ].map((item, i) => {
             const Icon = item.icon;
             return (
               <div
                 key={i}
-                className="relative group bg-gradient-to-br from-gray-100 to-gray-200 p-6 rounded-2xl shadow-md hover:shadow-xl hover:scale-[1.02] transition-all duration-300 border border-gray-300"
+                className="relative group p-6 rounded-2xl shadow-md hover:shadow-xl hover:scale-[1.02] transition-all duration-300 border border-gray-300"
               >
                 <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-red-500 to-red-700 opacity-0 group-hover:opacity-10 transition duration-300"></div>
                 <div className="flex items-center justify-between">
@@ -187,16 +186,13 @@ export default function ServiceBookings() {
           })}
         </section>
 
-        {/* 📋 Bookings Table */}
+        {/* Bookings Table */}
         <section className="bg-white border border-gray-300 rounded-2xl p-8 shadow-md">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
             <h2 className="flex items-center gap-2 text-2xl font-semibold text-gray-900">
-              <ClipboardList className="text-red-600 w-6 h-6" />
-              Booking List
+              <ClipboardList className="text-red-600 w-6 h-6" /> Booking List
             </h2>
-
             <div className="flex flex-col sm:flex-row gap-3 items-center">
-              {/* Search */}
               <div className="relative">
                 <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
                 <input
@@ -204,29 +200,20 @@ export default function ServiceBookings() {
                   placeholder="Search by service, city..."
                   className="border border-gray-300 rounded-xl pl-10 pr-4 py-2 bg-gray-100 text-gray-900 focus:ring-2 focus:ring-red-400 outline-none w-full sm:w-80"
                   value={search}
-                  onChange={(e) => setSearch(e.target.value)}
+                  onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
                 />
               </div>
-
-              {/* Download Buttons */}
               <div className="flex gap-3">
-                <button
-                  onClick={handleDownloadExcel}
-                  className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition"
-                >
+                <button onClick={handleDownloadExcel} className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition">
                   <FileSpreadsheet size={18} /> Excel
                 </button>
-                <button
-                  onClick={handleDownloadPDF}
-                  className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition"
-                >
+                <button onClick={handleDownloadPDF} className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition">
                   <FileDown size={18} /> PDF
                 </button>
               </div>
             </div>
           </div>
 
-          {/* Table */}
           <div className="overflow-x-auto rounded-xl border border-gray-200 shadow-inner">
             {loading ? (
               <div className="text-center py-12 text-gray-700">
@@ -248,32 +235,25 @@ export default function ServiceBookings() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredBookings.length === 0 ? (
+                  {paginatedBookings.length === 0 ? (
                     <tr>
-                      <td colSpan="8" className="py-8 text-center text-gray-500">
+                      <td colSpan={8} className="py-8 text-center text-gray-500">
                         <Search className="inline-block w-5 h-5 mr-2 text-gray-400" />
                         No bookings found
                       </td>
                     </tr>
                   ) : (
-                    filteredBookings.map((b) => (
+                    paginatedBookings.map((b) => (
                       <tr key={b.id} className="border-b hover:bg-gray-50 transition">
-                        <td className="px-6 py-4 font-medium text-gray-900">
-                          {b.service_name}
-                        </td>
+                        <td className="px-6 py-4 font-medium">{b.service_name}</td>
                         <td className="px-6 py-4">{b.sub_service_name || "—"}</td>
                         <td className="px-6 py-4">{b.city}</td>
                         <td className="px-6 py-4">₹{b.total_price}</td>
                         <td className="px-6 py-4">{b.discount_applied ? "Yes" : "No"}</td>
                         <td className="px-6 py-4">₹{b.final_amount}</td>
-                        <td className="px-6 py-4">
-                          {new Date(b.created_at).toLocaleString()}
-                        </td>
+                        <td className="px-6 py-4">{new Date(b.created_at).toLocaleString()}</td>
                         <td className="px-6 py-4 flex justify-center">
-                          <button
-                            className="text-red-600 hover:text-red-500"
-                            onClick={() => confirmDelete(b.id)}
-                          >
+                          <button className="text-red-600 hover:text-red-500" onClick={() => confirmDelete(b.id)}>
                             <Trash2 size={18} />
                           </button>
                         </td>
@@ -282,8 +262,64 @@ export default function ServiceBookings() {
                   )}
                 </tbody>
               </table>
+              
             )}
           </div>
+          {/* Pagination */}
+{totalPages > 1 && (
+  <div className="flex justify-center items-center gap-2 mt-4 flex-wrap">
+    <button
+      onClick={() => goToPage(currentPage - 1)}
+      disabled={currentPage === 1}
+      className={`px-3 py-1 rounded border transition ${
+        currentPage === 1 ? "bg-gray-200 cursor-not-allowed" : "hover:bg-gray-100"
+      }`}
+    >
+      Previous
+    </button>
+
+    {[...Array(totalPages)].map((_, i) => {
+      const pageNum = i + 1;
+      return (
+        <button
+          key={i}
+          onClick={() => goToPage(pageNum)}
+          className={`px-3 py-1 rounded border transition ${
+            currentPage === pageNum
+              ? "bg-red-600 text-white border-red-600"
+              : "hover:bg-gray-100"
+          }`}
+        >
+          {pageNum}
+        </button>
+      );
+    })}
+
+    <button
+      onClick={() => goToPage(currentPage + 1)}
+      disabled={currentPage === totalPages}
+      className={`px-3 py-1 rounded border transition ${
+        currentPage === totalPages ? "bg-gray-200 cursor-not-allowed" : "hover:bg-gray-100"
+      }`}
+    >
+      Next
+    </button>
+  </div>
+)}
+
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex justify-center gap-2 mt-4">
+              <button className="px-3 py-1 border rounded hover:bg-gray-100" onClick={() => goToPage(currentPage - 1)} disabled={currentPage === 1}>Previous</button>
+              {[...Array(totalPages)].map((_, i) => (
+                <button key={i} className={`px-3 py-1 border rounded ${currentPage === i + 1 ? "bg-red-600 text-white" : "hover:bg-gray-100"}`} onClick={() => goToPage(i + 1)}>
+                  {i + 1}
+                </button>
+              ))}
+              <button className="px-3 py-1 border rounded hover:bg-gray-100" onClick={() => goToPage(currentPage + 1)} disabled={currentPage === totalPages}>Next</button>
+            </div>
+          )}
         </section>
 
         {/* Delete Popup */}
@@ -294,21 +330,9 @@ export default function ServiceBookings() {
               <p className="mt-2 text-gray-600">
                 Are you sure you want to delete this booking? This action cannot be undone.
               </p>
-
               <div className="flex justify-end gap-3 mt-6">
-                <button
-                  onClick={() => setShowDeletePopup(false)}
-                  className="px-4 py-2 bg-gray-300 rounded-lg hover:bg-gray-400"
-                >
-                  Cancel
-                </button>
-
-                <button
-                  onClick={handleDelete}
-                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
-                >
-                  Delete
-                </button>
+                <button onClick={() => setShowDeletePopup(false)} className="px-4 py-2 bg-gray-300 rounded-lg hover:bg-gray-400">Cancel</button>
+                <button onClick={handleDelete} className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">Delete</button>
               </div>
             </div>
           </div>

@@ -11,40 +11,35 @@ import {
   BookOpenCheck,
   LogOut,
   RefreshCw,
-  Star, // ⭐ Website Reviews Icon
+  Star,
 } from "lucide-react";
 
 export default function AdminSidebar() {
   const pathname = usePathname();
   const router = useRouter();
 
-  // 🔹 Logout Function
   const handleLogout = () => {
     localStorage.removeItem("isAdminLoggedIn");
     router.push("/admin-login/login");
   };
 
-  // 🔹 Sidebar Links
   const links = [
     { href: "/admin/dashboard", label: "Dashboard", icon: Home },
     { href: "/admin/maids", label: "Maid Registrations", icon: Users },
-
-    // 🔁 Maid Change
     { href: "/admin/maid-change", label: "Maid Change", icon: RefreshCw },
-
-    // ⭐ Website Reviews Approval
     { href: "/admin/website-reviews", label: "Website Reviews", icon: Star },
-
     { href: "/admin/enquiries", label: "Enquiries", icon: ClipboardList },
     { href: "/admin/admin-services", label: "City Services", icon: Building2 },
+    { href: "/admin/admin-services/list", label: "List Services", icon: BookOpenCheck },
+
     { href: "/admin/service-bookings", label: "Service Bookings", icon: BookOpenCheck },
     { href: "/admin/user-display", label: "User Details", icon: Users },
   ];
 
   return (
-    <aside className="fixed left-0 top-0 h-screen w-64 bg-white text-black flex flex-col justify-between shadow-xl border-r border-gray-300 z-50">
+    <aside className="fixed left-0 top-0 h-screen w-64 bg-white text-black flex flex-col shadow-xl border-r border-gray-300 z-50 overflow-hidden">
 
-      {/* 🔴 Logo Section */}
+      {/* Logo */}
       <div className="flex flex-col items-center px-6 py-8 border-b border-gray-200">
         <div className="relative w-48 h-20 mb-3">
           <Image
@@ -61,8 +56,8 @@ export default function AdminSidebar() {
         </h2>
       </div>
 
-      {/* 🔹 Navigation */}
-      <nav className="flex flex-col px-4 py-6 space-y-2 overflow-y-auto">
+      {/* Navigation (NO SCROLL) */}
+      <nav className="flex flex-col px-4 py-6 space-y-2 flex-1 overflow-hidden">
         {links.map(({ href, label, icon: Icon }) => {
           const isActive = pathname === href;
 
@@ -71,10 +66,9 @@ export default function AdminSidebar() {
               key={href}
               href={href}
               className={`flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all duration-300
-                ${
-                  isActive
-                    ? "bg-red-600 text-white shadow-md scale-[1.02]"
-                    : "text-gray-700 hover:bg-gray-100 hover:text-black"
+                ${isActive
+                  ? "bg-red-600 text-white shadow-md scale-[1.02]"
+                  : "text-gray-700 hover:bg-gray-100 hover:text-black"
                 }`}
             >
               <Icon
@@ -87,7 +81,7 @@ export default function AdminSidebar() {
         })}
       </nav>
 
-      {/* 🔹 Logout */}
+      {/* Logout */}
       <div className="px-4 pb-6 border-t border-gray-200">
         <button
           onClick={handleLogout}
