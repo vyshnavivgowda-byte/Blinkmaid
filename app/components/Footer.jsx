@@ -145,12 +145,7 @@ export default function Footer() {
           <p className="text-gray-500 text-sm font-medium">
             &copy; {new Date().getFullYear()} <span className="text-blinkwhite">Blinkmaid</span>. Crafted for Excellence.
           </p>
-          
-          <div className="flex items-center gap-8 text-gray-500 text-[10px] font-black uppercase tracking-[0.3em]">
-            <span className="hover:text-blinkwhite cursor-pointer transition-colors duration-300">Instagram</span>
-            <span className="hover:text-blinkwhite cursor-pointer transition-colors duration-300">LinkedIn</span>
-            <span className="hover:text-blinkwhite cursor-pointer transition-colors duration-300">Twitter</span>
-          </div>
+
         </div>
 
       </div>

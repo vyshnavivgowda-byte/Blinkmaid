@@ -44,7 +44,7 @@ export default function AdminSidebar() {
       <div className="flex flex-col items-center px-6 py-8 border-b border-gray-200">
         <div className="relative w-48 h-20 mb-3">
           <Image
-            src="/LOGOADMIN.jpg"
+            src="/logosite.png"
             alt="Blinkmaid Admin Logo"
             fill
             className="object-contain rounded-lg"

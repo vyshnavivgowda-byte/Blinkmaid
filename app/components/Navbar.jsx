@@ -7,7 +7,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import logo from "@/public/logo.jpg";
+import logo from "@/public/logosite.png";
 import { supabase } from "../../lib/supabaseClient";
 import { useToast } from "@/app/components/toast/ToastContext";
 
@@ -167,32 +167,35 @@ export default function Navbar() {
   };
 
   const handlePayment = (plan) => {
-    const options = {
-      key: "rzp_test_RpvE2nM5XUTYN7",
- amount: plan.price * 100, // ✅ paise (₹5999 → 599900)      currency: "INR",
-      name: "Blinkmaid",
-      handler: async function (response) {
-        const { error } = await supabase.from("subscribers").insert([{
-          name: user.user_metadata?.name,
-          email: user.email,
-          phone: user.user_metadata?.phone,
-          plan_duration: plan.duration,
-          plan_price: plan.price,
-          plan_benefits: JSON.stringify(plan.features),
-          user_id: user.id,
-          subscribed_at: new Date(),
-        }]);
-        if (!error) {
-          showToast("Subscription Activated!", "success");
-          fetchSubscribers(user.id);
-          setShowSubscribePopup(false);
-        }
-      },
-      prefill: { email: user.email },
-      theme: { color: "#E63946" },
-    };
-    new window.Razorpay(options).open();
+  const amountInPaise = Math.round(Number(plan.price.replace(/,/g, '')) * 100);
+
+  const options = {
+    key: "rzp_test_RpvE2nM5XUTYN7",
+    amount: amountInPaise, // now correct
+    currency: "INR",
+    name: "Blinkmaid",
+    handler: async function (response) {
+      const { error } = await supabase.from("subscribers").insert([{
+        name: user.user_metadata?.name,
+        email: user.email,
+        phone: user.user_metadata?.phone,
+        plan_duration: plan.duration,
+        plan_price: plan.price,
+        plan_benefits: JSON.stringify(plan.features),
+        user_id: user.id,
+        subscribed_at: new Date(),
+      }]);
+      if (!error) {
+        showToast("Subscription Activated!", "success");
+        fetchSubscribers(user.id);
+        setShowSubscribePopup(false);
+      }
+    },
+    prefill: { email: user.email },
+    theme: { color: "#E63946" },
   };
+  new window.Razorpay(options).open();
+};
 
   return (
     <>
