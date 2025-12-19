@@ -6,7 +6,7 @@ import { supabase } from "@/lib/supabaseClient";
 import {
   Users,
   ClipboardList,
-  DollarSign,
+  IndianRupee,
   Activity,
   Bell,
   UserCheck,
@@ -69,14 +69,14 @@ export default function DashboardPage() {
 
       <main className="flex-grow px-4 sm:px-8 py-6 text-gray-900 overflow-y-auto">
 
-        
+
 
         {/* STATS SECTION */}
         <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
           {[
             { icon: Users, title: "Total Maids", value: stats.maids },
             { icon: ClipboardList, title: "Total Enquiries", value: stats.enquiries },
-            { icon: DollarSign, title: "Total Subscribers", value: stats.subscribers },
+            { icon: IndianRupee, title: "Total Subscribers", value: stats.subscribers },
             { icon: UserCheck, title: "Registered Users", value: stats.users },
             { icon: Activity, title: "Total Bookings", value: stats.bookings },
           ].map((item, i) => {
@@ -124,7 +124,7 @@ export default function DashboardPage() {
             </Link>
             {/* Add Services & Plans */}
             <Link href="/admin/admin-services" className="bg-gray-50 border border-gray-200 rounded-lg p-4 flex flex-col gap-2 hover:shadow-md hover:-translate-y-1 transition duration-200">
-              <DollarSign className="text-red-700" size={24} />
+              <IndianRupee className="text-red-700" size={24} />
               <h3 className="font-semibold text-base">Add Services & Plans</h3>
               <p className="text-sm text-gray-600">Create new services or subscription plans.</p>
             </Link>
@@ -135,7 +135,7 @@ export default function DashboardPage() {
               <p className="text-sm text-gray-600">View all services and subscription plans.</p>
             </Link>
             {/* User Lists */}
-            <Link href="/admin/users-display" className="bg-gray-50 border border-gray-200 rounded-lg p-4 flex flex-col gap-2 hover:shadow-md hover:-translate-y-1 transition duration-200">
+            <Link href="/admin/user-display" className="bg-gray-50 border border-gray-200 rounded-lg p-4 flex flex-col gap-2 hover:shadow-md hover:-translate-y-1 transition duration-200">
               <UserCheck className="text-red-700" size={24} />
               <h3 className="font-semibold text-base">User Lists</h3>
               <p className="text-sm text-gray-600">Check all registered users.</p>

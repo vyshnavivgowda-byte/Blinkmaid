@@ -446,121 +446,6 @@ export default function Home() {
                 </div>
             </section>
 
-            {/* About Us Section */}
-            {/* About Us Section - Elite Cinematic Integration */}
-            <section id="about" className="relative bg-[#050505] py-32 overflow-hidden border-t border-white/5">
-
-                {/* Background Tech Pattern */}
-                <div className="absolute inset-0 opacity-[0.05] pointer-events-none"
-                    style={{ backgroundImage: 'radial-gradient(#fff 1px, transparent 1px)', backgroundSize: '60px 60px' }} />
-
-                {/* Ambient Glows to match the Portal */}
-                <div className="absolute top-1/2 left-0 w-[500px] h-[500px] bg-blinkred/5 rounded-full blur-[120px] -z-10" />
-
-                <div className="max-w-7xl mx-auto px-6 relative">
-                    <div className="flex flex-col lg:flex-row items-center gap-24">
-
-                        {/* Left: Premium Image with Neon Accents */}
-                        <motion.div
-                            className="lg:w-1/2 relative"
-                            initial={{ opacity: 0, scale: 0.9 }}
-                            whileInView={{ opacity: 1, scale: 1 }}
-                            viewport={{ once: true }}
-                            transition={{ duration: 1 }}
-                        >
-                            <div className="relative z-10 group">
-                                {/* The "Glow" behind the image */}
-                                <div className="absolute -inset-1 bg-gradient-to-r from-blinkred to-transparent rounded-[3rem] blur opacity-20 group-hover:opacity-40 transition duration-1000"></div>
-
-                                <img
-                                    src="/aboutpage.jpg"
-                                    alt="BlinkMaid Excellence"
-                                    className="relative w-full h-[650px] object-cover rounded-[3rem] shadow-2xl grayscale hover:grayscale-0 transition-all duration-700 border border-white/10"
-                                />
-
-                                {/* Floating Tech Badge */}
-                                <motion.div
-                                    className="absolute -bottom-6 -right-6 bg-white p-10 rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.5)] text-black hidden md:block"
-                                    animate={{ y: [0, -20, 0] }}
-                                    transition={{ repeat: Infinity, duration: 6, ease: "easeInOut" }}
-                                >
-                                    <p className="text-5xl font-black italic tracking-tighter leading-none text-blinkred">#1</p>
-                                    <p className="text-[10px] font-black uppercase tracking-[0.3em] mt-3 text-black/40">Market Authority</p>
-                                </motion.div>
-                            </div>
-
-                            {/* Cyber Geometric Accents */}
-                            <div className="absolute -top-10 -left-10 w-32 h-32 border-t-2 border-l-2 border-blinkred/30 -z-10" />
-                        </motion.div>
-
-                        {/* Right: Content & Elite Icon Grid */}
-                        <div className="lg:w-1/2">
-                            <motion.div
-                                initial={{ opacity: 0, x: 40 }}
-                                whileInView={{ opacity: 1, x: 0 }}
-                                viewport={{ once: true }}
-                                transition={{ duration: 0.8 }}
-                            >
-                                <div className="flex items-center gap-4 mb-8">
-                                    <div className="h-[1px] w-16 bg-blinkred/50"></div>
-                                    <span className="text-blinkred font-black tracking-[0.5em] uppercase text-[10px]">
-                                        Operational Excellence
-                                    </span>
-                                </div>
-
-                                <h2 className="text-6xl md:text-8xl font-black text-white mb-10 leading-[0.85] tracking-tighter uppercase">
-                                    OUR <br /> <span className="text-transparent" style={{ WebkitTextStroke: '1px #fff' }}>IDENTITY.</span>
-                                </h2>
-
-                                <p className="text-lg text-white/50 mb-16 leading-relaxed font-medium tracking-wide">
-                                    We aren't just a service; we are a <span className="text-white">high-performance network</span>. By fusing elite human talent with proprietary vetting technology, we’ve built a standard that others simply cannot reach.
-                                </p>
-                            </motion.div>
-
-                            {/* Dark Feature Grid */}
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                {[
-                                    {
-                                        icon: <HiOutlineSparkles size={28} />,
-                                        title: "Innovation",
-                                        desc: "AI-Driven Logistics"
-                                    },
-                                    {
-                                        icon: <HiOutlineUserGroup size={28} />,
-                                        title: "The Elite",
-                                        desc: "Top 1% Talent"
-                                    },
-                                    {
-                                        icon: <HiSupport size={28} />,
-                                        title: "Precision",
-                                        desc: "Zero-Error Support"
-                                    }
-                                ].map((item, idx) => (
-                                    <motion.div
-                                        key={idx}
-                                        className="bg-white/[0.03] p-8 rounded-3xl border border-white/5 hover:border-blinkred/40 transition-all duration-500 group"
-                                        whileInView={{ opacity: 1, y: 0 }}
-                                        initial={{ opacity: 0, y: 30 }}
-                                        viewport={{ once: true }}
-                                        transition={{ delay: idx * 0.1 }}
-                                    >
-                                        <div className="text-white/20 group-hover:text-blinkred mb-6 transition-colors duration-500">
-                                            {item.icon}
-                                        </div>
-                                        <h4 className="font-black text-white text-[11px] uppercase tracking-widest mb-2">
-                                            {item.title}
-                                        </h4>
-                                        <p className="text-[10px] text-white/30 font-bold uppercase tracking-tighter leading-tight">
-                                            {item.desc}
-                                        </p>
-                                    </motion.div>
-                                ))}
-                            </div>
-                        </div>
-
-                    </div>
-                </div>
-            </section>
             {/* Subscription Section - Premium Tiered Design */}
             <section id="pricing" className="relative bg-[#f8f9fa] py-24 overflow-hidden">
 
@@ -589,23 +474,35 @@ export default function Home() {
                         {[
                             {
                                 duration: "3 Months",
-                                tagline: "Essential Start",
+                                tagline: "Essential Plan",
                                 price: 5999,
-                                features: ["1 Free Replacement", "Standard Support", "Basic Monthly Discount"],
+                                features: [
+                                    "1 Free Replacement",
+                                    "10% Monthly Salary Discount",
+                                    "24/7 Support",
+                                ],
                                 popular: false,
                             },
                             {
                                 duration: "6 Months",
-                                tagline: "Most Popular",
+                                tagline: "Most Recommended",
                                 price: 11999,
-                                features: ["2 Free Replacements", "Priority Support", "10% Monthly Discount", "Dedicated Manager"],
+                                features: [
+                                    "1 Free Replacement",
+                                    "10% Monthly Salary Discount",
+                                    "24/7 Support",
+                                ],
                                 popular: true,
                             },
                             {
                                 duration: "12 Months",
-                                tagline: "Ultimate Value",
+                                tagline: "Best Value",
                                 price: 19999,
-                                features: ["Unlimited Replacements", "VIP 24/7 Support", "15% Monthly Discount", "Deep Cleaning Bonus"],
+                                features: [
+                                    "1 Free Replacement",
+                                    "10% Monthly Salary Discount",
+                                    "24/7 Support",
+                                ],
                                 popular: false,
                             },
                         ].map((plan, index) => (
@@ -615,6 +512,7 @@ export default function Home() {
                                     }`}
                                 initial={{ opacity: 0, y: 40 }}
                                 whileInView={{ opacity: 1, y: 0 }}
+                                 whileHover={{ y: -20 }}
                                 transition={{ delay: index * 0.1 }}
                             >
                                 {/* Internal Card */}

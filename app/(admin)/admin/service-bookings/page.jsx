@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import {
   ClipboardList,
-  DollarSign,
+  IndianRupee,
   Percent,
   Trash2,
   Search,
@@ -164,7 +164,7 @@ export default function ServiceBookings() {
         {/* Stats */}
         <section className="grid grid-cols-1 sm:grid-cols-3 gap-6">
           {[{ icon: ClipboardList, title: "Total Bookings", value: totalBookings },
-            { icon: DollarSign, title: "Total Revenue", value: `₹${totalRevenue.toLocaleString()}` },
+            { icon: IndianRupee, title: "Total Revenue", value: `₹${totalRevenue.toLocaleString()}` },
             { icon: Percent, title: "Avg Amount", value: `₹${avgAmount}` }
           ].map((item, i) => {
             const Icon = item.icon;

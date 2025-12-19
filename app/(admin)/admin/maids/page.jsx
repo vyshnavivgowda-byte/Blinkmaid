@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { ToastProvider } from "@/app/components/toast/ToastContext";
 import { useToast } from "@/app/components/toast/ToastContext";
 import { supabase } from "@/lib/supabaseClient";
-import { Users, Briefcase, DollarSign, Trash2, Search } from "lucide-react";
+import { Users, Briefcase, IndianRupee, Trash2, Search } from "lucide-react";
 import StatsCard from "../../../components/StatsCard";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
@@ -145,7 +145,7 @@ export default function MaidDashboard() {
         <section className="grid grid-cols-1 sm:grid-cols-3 gap-6">
           {[{ icon: Users, title: "Total Maids", value: totalMaids },
             { icon: Briefcase, title: "Avg Experience", value: `${avgExperience} yrs` },
-            { icon: DollarSign, title: "Avg Salary", value: `₹${avgSalary.toLocaleString()}` },
+            { icon: IndianRupee, title: "Avg Salary", value: `₹${avgSalary.toLocaleString()}` },
           ].map((item, i) => {
             const Icon = item.icon;
             return (

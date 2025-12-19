@@ -391,54 +391,139 @@ export default function ProfilePage() {
     );
   }
 
-  function renderSubscriptionsTab() {
-    const plans = [
-      { duration: "3 Months", price: 5999, original: 6666, disc: "15%", color: "rose" },
-      { duration: "6 Months", price: 11999, original: 13332, disc: "18%", color: "indigo", popular: true },
-      { duration: "1 Year", price: 19999, original: 24999, disc: "20%", color: "slate" },
-    ];
+function renderSubscriptionsTab() {
+  const plans = [
+    {
+      duration: "3 Months",
+      price: 5999,
+      popular: false,
+      gradient: "from-rose-500 to-pink-500",
+    },
+    {
+      duration: "6 Months",
+      price: 11999,
+      popular: true,
+      gradient: "from-indigo-500 to-purple-500",
+    },
+    {
+      duration: "1 Year",
+      price: 19999,
+      popular: false,
+      gradient: "from-slate-700 to-slate-900",
+    },
+  ];
 
-    return (
-      <div className="space-y-8">
-        {userData.subscription ? (
-          <div className="bg-emerald-50 border border-emerald-200 rounded-3xl p-10 text-center">
-            <div className="w-20 h-20 bg-emerald-500 rounded-full flex items-center justify-center text-white mx-auto mb-6 shadow-lg">
-              <ShieldCheck size={40} />
+  return (
+    <div className="space-y-10">
+      {/* ACTIVE SUBSCRIPTION */}
+      {userData.subscription && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-emerald-500 to-green-600 p-10 text-white shadow-2xl"
+        >
+          <div className="absolute inset-0 bg-black/10" />
+          <div className="relative z-10 text-center">
+            <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-white/20">
+              <ShieldCheck size={42} />
             </div>
-            <h2 className="text-3xl font-bold text-emerald-900">You are a Pro Member!</h2>
-            <p className="text-emerald-700 mt-2">Current Plan: {userData.subscription.plan_duration} active until expired.</p>
+            <h2 className="text-3xl font-extrabold">Premium Member</h2>
+            <p className="mt-2 text-white/90">
+              Active Plan:{" "}
+              <span className="font-bold">
+                {userData.subscription.plan_duration}
+              </span>
+            </p>
+            <p className="mt-1 text-sm text-white/80">
+              Enjoy priority service & exclusive benefits ✨
+            </p>
           </div>
-        ) : (
+        </motion.div>
+      )}
+
+      {/* PLANS */}
+      {!userData.subscription && (
+        <>
+          <div className="text-center">
+            <h2 className="text-4xl font-extrabold text-slate-900">
+              Choose Your Membership
+            </h2>
+            <p className="mt-2 text-slate-500 max-w-xl mx-auto">
+              Unlock premium support, free replacements & discounted services.
+            </p>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {plans.map((plan) => (
-              <div key={plan.duration} className={`relative bg-white border ${plan.popular ? 'border-rose-500 ring-4 ring-rose-50' : 'border-slate-200'} rounded-3xl p-8 transition-transform hover:scale-105`}>
-                {plan.popular && <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-rose-500 text-white px-4 py-1 rounded-full text-xs font-bold uppercase tracking-widest">Most Popular</div>}
-                <h3 className="text-xl font-bold mb-1">{plan.duration}</h3>
-                <div className="flex items-baseline gap-2 mb-6">
-                  <span className="text-4xl font-black text-slate-900">₹{plan.price}</span>
-                  <span className="text-slate-400 line-through text-sm">₹{plan.original}</span>
+              <motion.div
+                key={plan.duration}
+                whileHover={{ y: -8 }}
+                className={`relative rounded-3xl p-[2px] ${
+                  plan.popular
+                    ? "bg-gradient-to-r from-rose-500 to-pink-500"
+                    : "bg-slate-200"
+                }`}
+              >
+                {plan.popular && (
+                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 z-10 rounded-full bg-rose-500 px-4 py-1 text-xs font-bold uppercase tracking-widest text-white shadow-lg">
+                    Most Popular
+                  </div>
+                )}
+
+                <div className="h-full rounded-3xl bg-white p-8 shadow-xl">
+                  <h3 className="text-xl font-bold text-slate-900 mb-1">
+                    {plan.duration}
+                  </h3>
+
+                  <div className="flex items-end gap-2 mb-4">
+                    <span className="text-4xl font-black text-slate-900">
+                      ₹{plan.price}
+                    </span>
+                  </div>
+
+                  <ul className="space-y-4 text-sm text-slate-600 mb-8">
+                    <li className="flex items-center gap-2">
+                      <CheckCircle size={16} className="text-emerald-500" />
+                      1 Free Maid Replacement
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle size={16} className="text-emerald-500" />
+                      10% Discount on Salary
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle size={16} className="text-emerald-500" />
+                      Priority Customer Support
+                    </li>
+                  </ul>
+
+                  <button
+                    onClick={() => handleRazorpaySubscription(plan)}
+                    disabled={paymentProcessing}
+                    className={`w-full rounded-2xl py-4 font-bold text-white transition-all shadow-lg ${
+                      plan.popular
+                        ? "bg-gradient-to-r from-rose-500 to-pink-500 hover:opacity-90"
+                        : "bg-slate-900 hover:bg-slate-800"
+                    }`}
+                  >
+                    {paymentProcessing ? (
+                      <RefreshCw className="mx-auto animate-spin" />
+                    ) : (
+                      <>
+                        <CreditCard size={18} className="inline mr-2" />
+                        Subscribe Now
+                      </>
+                    )}
+                  </button>
                 </div>
-                <ul className="space-y-4 mb-8 text-sm text-slate-600">
-                  <li className="flex items-center gap-2"><CheckCircle size={16} className="text-emerald-500" /> 1 Free Replacement</li>
-                  <li className="flex items-center gap-2"><CheckCircle size={16} className="text-emerald-500" /> 10% Salary Discount</li>
-                  <li className="flex items-center gap-2"><CheckCircle size={16} className="text-emerald-500" /> Priority Support</li>
-                </ul>
-                <button 
-                  onClick={() => handleRazorpaySubscription(plan)}
-                  disabled={paymentProcessing}
-                  className={`w-full py-4 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all ${
-                    plan.popular ? 'bg-rose-500 text-white shadow-lg shadow-rose-200' : 'bg-slate-900 text-white'
-                  }`}
-                >
-                  {paymentProcessing ? <RefreshCw className="animate-spin" /> : <CreditCard size={18} />} Get Started
-                </button>
-              </div>
+              </motion.div>
             ))}
           </div>
-        )}
-      </div>
-    );
-  }
+        </>
+      )}
+    </div>
+  );
+}
+
 
   // --- INTERNAL COMPONENTS ---
   

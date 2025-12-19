@@ -22,22 +22,34 @@ const menuItems = [
 const plans = [
   {
     duration: "3 Months",
-    price: 5999,
-    tagline: "Essential Protection",
-    features: ["1 Free Replacement", "10% Salary Discount", "Priority Support"],
+    price: "5,999",
+    tagline: "Quarterly Plan",
+    features: [
+      "1 Free Replacement",
+      "10% Monthly Salary Discount",
+      "24/7 Support",
+    ],
   },
   {
     duration: "6 Months",
-    price: 11999,
-    tagline: "Most Popular Choice",
+    price: "11,999",
+    tagline: "Best Value Plan",
     popular: true,
-    features: ["2 Free Replacements", "15% Salary Discount", "Personal Manager"],
+    features: [
+      "1 Free Replacement",
+      "10% Monthly Salary Discount",
+      "24/7 Support",
+    ],
   },
   {
     duration: "12 Months",
-    price: 19999,
-    tagline: "Elite Annual Peace",
-    features: ["Unlimited Replacements", "20% Salary Discount", "VIP Concierge"],
+    price: "19,999",
+    tagline: "Annual Plan",
+    features: [
+      "1 Free Replacement",
+      "10% Monthly Salary Discount",
+      "24/7 Support",
+    ],
   },
 ];
 
@@ -62,7 +74,21 @@ export default function Navbar() {
   const [formData, setFormData] = useState({
     name: "", email: "", password: "", confirmPassword: "", phone: "",
   });
-
+  const isExpired = (subscriber) => {
+    const subscribedAt = new Date(subscriber.subscribed_at);
+    const now = new Date();
+    const durationMatch = subscriber.plan_duration.match(/(\d+)\s*(Months?|Years?)/i);
+    if (!durationMatch) return false; // If can't parse, assume not expired
+    const value = parseInt(durationMatch[1]);
+    const unit = durationMatch[2].toLowerCase();
+    let expiryDate = new Date(subscribedAt);
+    if (unit.includes('month')) {
+      expiryDate.setMonth(expiryDate.getMonth() + value);
+    } else if (unit.includes('year')) {
+      expiryDate.setFullYear(expiryDate.getFullYear() + value);
+    }
+    return now > expiryDate;
+  };
   const resetForm = useCallback(() => {
     setFormData({ name: "", email: "", password: "", confirmPassword: "", phone: "" });
     setFormErrors({});
@@ -143,8 +169,7 @@ export default function Navbar() {
   const handlePayment = (plan) => {
     const options = {
       key: "rzp_test_RpvE2nM5XUTYN7",
-      amount: plan.price * 100,
-      currency: "INR",
+ amount: plan.price * 100, // ✅ paise (₹5999 → 599900)      currency: "INR",
       name: "Blinkmaid",
       handler: async function (response) {
         const { error } = await supabase.from("subscribers").insert([{
@@ -182,9 +207,8 @@ export default function Navbar() {
               <Link
                 key={path}
                 href={path}
-                className={`px-5 py-2 text-[13px] font-black uppercase tracking-tighter transition-all relative group ${
-                  pathname === path ? "text-blinkred" : "text-blinkblack/60 hover:text-blinkblack"
-                }`}
+                className={`px-5 py-2 text-[13px] font-black uppercase tracking-tighter transition-all relative group ${pathname === path ? "text-blinkred" : "text-blinkblack/60 hover:text-blinkblack"
+                  }`}
               >
                 {label}
                 {pathname === path && (
@@ -265,15 +289,28 @@ export default function Navbar() {
       {/* Subscription Status Banner */}
       {user && (
         <div className="fixed top-24 left-0 w-full z-40">
-          <div className={`${subscribers.length > 0 ? 'bg-blinkblack' : 'bg-blinkred'} text-white py-2 overflow-hidden shadow-lg`}>
+          <div className={`${subscribers.length > 0 && !isExpired(subscribers[0])
+              ? 'bg-blinkblack'
+              : subscribers.length > 0 && isExpired(subscribers[0])
+                ? 'bg-red-600'
+                : 'bg-blinkred'
+            } text-white py-2 overflow-hidden shadow-lg`}>
             <div className="flex items-center justify-center gap-4 text-[10px] font-black uppercase tracking-[0.3em]">
               {loadingSubscribers ? (
                 <Loader2 className="animate-spin" size={14} />
               ) : subscribers.length > 0 ? (
-                <>
-                  <ShieldCheck size={14} className="text-green-400" />
-                  Active {subscribers[0].plan_duration} Member
-                </>
+                isExpired(subscribers[0]) ? (
+                  <>
+                    <X size={14} className="text-red-300" />
+                    {subscribers[0].plan_duration} Plan Expired
+                    <button onClick={() => setShowSubscribePopup(true)} className="underline decoration-2 underline-offset-4 ml-4">Renew Now</button>
+                  </>
+                ) : (
+                  <>
+                    <ShieldCheck size={14} className="text-green-400" />
+                    Active {subscribers[0].plan_duration} Member
+                  </>
+                )
               ) : (
                 <>
                   Unprotected Account <ArrowRight size={14} />
@@ -335,46 +372,91 @@ export default function Navbar() {
       <AnimatePresence>
         {showSubscribePopup && (
           <motion.div
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/95 backdrop-blur-md flex justify-center items-center z-[200] p-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-white/10 backdrop-blur-2xl flex justify-center items-center z-[200] p-4"
           >
             <motion.div
               ref={subscribeModalRef}
-              initial={{ scale: 0.9 }} animate={{ scale: 1 }}
-              className="w-full max-w-6xl relative"
+              initial={{ scale: 0.9, y: 50 }}
+              animate={{ scale: 1, y: 0 }}
+              whileHover={{ y: -20 }}
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              className="w-full max-w-6xl relative bg-white/90 backdrop-blur-xl rounded-[3rem] shadow-2xl border border-white/20 overflow-hidden"
             >
-              <button onClick={() => setShowSubscribePopup(false)} className="absolute -top-12 right-0 text-white hover:text-blinkred flex items-center gap-2 text-[10px] font-black tracking-widest uppercase">
-                Close Portal <X size={20} />
+              <button
+                onClick={() => setShowSubscribePopup(false)}
+                className="absolute top-6 right-6 w-12 h-12 bg-gray-100 hover:bg-blinkred text-gray-600 hover:text-white rounded-full flex items-center justify-center transition-all shadow-lg hover:shadow-xl z-10"
+              >
+                <X size={20} />
               </button>
-              <div className="text-center mb-12">
-                <h2 className="text-5xl md:text-7xl font-black text-white tracking-tighter uppercase leading-none">
-                  SELECT YOUR <span className="text-blinkred italic">TIER.</span>
-                </h2>
-                <p className="text-gray-500 font-bold uppercase tracking-[0.4em] text-[10px] mt-4">Professional Maintenance Plans</p>
-              </div>
-              <div className="grid md:grid-cols-3 gap-6">
-                {plans.map((plan, index) => (
-                  <div key={index} className={`relative p-10 rounded-[3rem] transition-all duration-500 border-2 ${plan.popular ? 'bg-white border-blinkred scale-105 z-10' : 'bg-blinkblack border-white/10 hover:border-white/30'}`}>
-                    {plan.popular && (
-                      <span className="absolute -top-4 left-1/2 -translate-x-1/2 bg-blinkred text-white text-[10px] font-black px-6 py-2 rounded-full uppercase tracking-widest">Recommended</span>
-                    )}
-                    <h3 className={`text-3xl font-black uppercase tracking-tighter ${plan.popular ? 'text-black' : 'text-white'}`}>{plan.duration}</h3>
-                    <p className="text-blinkred font-black text-[10px] uppercase tracking-widest mt-2">{plan.tagline}</p>
-                    <div className="my-10">
-                      <span className={`text-6xl font-black tracking-tighter ${plan.popular ? 'text-black' : 'text-white'}`}>₹{plan.price}</span>
-                      <span className="text-gray-500 font-bold text-sm ml-2">/one-time</span>
-                    </div>
-                    <ul className="space-y-4 mb-10">
-                      {plan.features.map((f, i) => (
-                        <li key={i} className={`flex items-center gap-3 text-xs font-bold ${plan.popular ? 'text-gray-600' : 'text-gray-400'}`}>
-                          <CheckCircle size={16} className="text-blinkred" /> {f}
-                        </li>
-                      ))}
-                    </ul>
-                    <button onClick={() => handlePayment(plan)} className={`w-full py-5 rounded-2xl font-black uppercase tracking-widest text-[10px] transition-all ${plan.popular ? 'bg-blinkred text-white hover:bg-black' : 'bg-white text-black hover:bg-blinkred hover:text-white'}`}>Initialize Membership</button>
+              {subscribers.length > 0 ? (
+                <div className="text-center p-20">
+                  <ShieldCheck size={64} className="text-blinkred mx-auto mb-6 animate-pulse" />
+                  <h2 className="text-4xl font-black text-black uppercase tracking-tighter mb-4">Already Subscribed</h2>
+                  <p className="text-gray-600 font-bold uppercase tracking-widest text-[10px]">You have an active {subscribers[0].plan_duration} plan.</p>
+                  <button
+                    onClick={() => setShowSubscribePopup(false)}
+                    className="mt-8 px-8 py-4 bg-blinkred text-white rounded-full font-black uppercase tracking-widest text-[10px] hover:bg-black transition-all shadow-lg hover:shadow-xl"
+                  >
+                    Close
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <div className="text-center mb-12 p-8">
+                    <h2 className="text-5xl md:text-7xl font-black text-gray-900 tracking-tighter uppercase leading-none">
+                      SELECT YOUR <span className="text-blinkred italic">TIER.</span>
+                    </h2>
+                    <p className="text-gray-500 font-bold uppercase tracking-[0.4em] text-[10px] mt-4">Professional Maintenance Plans</p>
                   </div>
-                ))}
-              </div>
+                  <div className="grid md:grid-cols-3 gap-6 p-8">
+                    {plans.map((plan, index) => (
+                      <motion.div
+                        key={index}
+                        whileHover={{ scale: 1.05, y: -10 }}
+                        transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                        className={`relative p-10 rounded-[3rem] transition-all duration-500 border-2 shadow-lg hover:shadow-2xl ${plan.popular
+                          ? 'bg-gradient-to-br from-white to-gray-50 border-blinkred scale-105 z-10'
+                          : 'bg-gradient-to-br from-gray-100 to-gray-200 border-gray-300 hover:border-blinkred'
+                          }`}
+                      >
+                        {plan.popular && (
+                          <span className="absolute -top-4 left-1/2 -translate-x-1/2 bg-blinkred text-white text-[10px] font-black px-6 py-2 rounded-full uppercase tracking-widest shadow-lg">
+                            Recommended
+                          </span>
+                        )}
+                        <h3 className={`text-3xl font-black uppercase tracking-tighter ${plan.popular ? 'text-black' : 'text-gray-800'}`}>
+                          {plan.duration}
+                        </h3>
+                        <p className="text-blinkred font-black text-[10px] uppercase tracking-widest mt-2">{plan.tagline}</p>
+                        <div className="my-10">
+                          <span className={`text-6xl font-black tracking-tighter ${plan.popular ? 'text-black' : 'text-gray-800'}`}>
+₹{plan.price.toLocaleString("en-IN")}
+                          </span>
+                        </div>
+                        <ul className="space-y-4 mb-10">
+                          {plan.features.map((f, i) => (
+                            <li key={i} className={`flex items-center gap-3 text-xs font-bold ${plan.popular ? 'text-gray-600' : 'text-gray-500'}`}>
+                              <CheckCircle size={16} className="text-blinkred" /> {f}
+                            </li>
+                          ))}
+                        </ul>
+                        <button
+                          onClick={() => handlePayment(plan)}
+                          className={`w-full py-5 rounded-2xl font-black uppercase tracking-widest text-[10px] transition-all shadow-md hover:shadow-lg ${plan.popular
+                            ? 'bg-blinkred text-white hover:bg-black'
+                            : 'bg-white text-black hover:bg-blinkred hover:text-white border border-gray-300'
+                            }`}
+                        >
+                          Initialize Membership
+                        </button>
+                      </motion.div>
+                    ))}
+                  </div>
+                </>
+              )}
             </motion.div>
           </motion.div>
         )}

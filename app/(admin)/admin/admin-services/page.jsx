@@ -25,7 +25,7 @@ export default function AdminServices() {
   const [questions, setQuestions] = useState([]);
   const [showQuestionModal, setShowQuestionModal] = useState(false);
   const [newQuestion, setNewQuestion] = useState("");
-  const [questionType, setQuestionType] = useState("text");
+  const [questionType, setQuestionType] = useState("multiple"); // Default to multiple
   const [options, setOptions] = useState([{ option: "", price: "" }]);
   const [viewService, setViewService] = useState(null);
   const [viewSubServices, setViewSubServices] = useState([]);
@@ -36,7 +36,7 @@ export default function AdminServices() {
   const [selectedSubServiceId, setSelectedSubServiceId] = useState("");
   const [questionDetails, setQuestionDetails] = useState({
     question: "",
-    type: "text",
+    type: "multiple", // Default to multiple
     options: []
   });
 
@@ -51,6 +51,8 @@ export default function AdminServices() {
     subServicePrice: "",
     question: "",
     options: "",
+    serviceImage: "", // Added for image validation
+    questions: "", // Added for at least one question validation
   });
 
   // New states for delete modal
@@ -59,14 +61,13 @@ export default function AdminServices() {
   const [serviceImage, setServiceImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
 
-
   const handleAddQuestion = async () => {
     const { error } = await supabase
       .from("sub_service_questions")
       .insert({
         sub_service_id: selectedSubServiceId,
         question: questionDetails.question,
-        type: questionType,
+        type: "multiple", // Always multiple
         options: questionDetails.options
       });
 
@@ -102,7 +103,6 @@ export default function AdminServices() {
   useEffect(() => {
     fetchData();
   }, []);
-
 
   const uploadServiceImage = async (file) => {
     const fileExt = file.name.split(".").pop();
@@ -183,12 +183,14 @@ export default function AdminServices() {
       serviceName: "",
       servicePrice: "",
       serviceDescription: "",
+      serviceImage: "", // Added
     };
     if (!selectedCity) newErrors.selectedCity = "Please select a city.";
     if (!serviceName.trim()) newErrors.serviceName = "Service name is required.";
     if (!servicePrice || parseFloat(servicePrice) <= 0) newErrors.servicePrice = "Price must be greater than 0.";
     const wordCount = serviceDescription.trim().split(/\s+/).filter(word => word).length;
     if (wordCount <= 1) newErrors.serviceDescription = "Description must be more than 10 letters.";
+    if (!serviceImage) newErrors.serviceImage = "Please select a service image."; // Added
     setErrors(prev => ({ ...prev, ...newErrors }));
     return Object.values(newErrors).every(error => !error);
   };
@@ -198,11 +200,12 @@ export default function AdminServices() {
       selectedService: "",
       subServiceName: "",
       subServicePrice: "",
-      subServiceDescription: "",
+      questions: "", // Added
     };
     if (!selectedService) newErrors.selectedService = "Please select a service.";
     if (!subServiceName.trim()) newErrors.subServiceName = "Sub-service name is required.";
     if (!subServicePrice || parseFloat(subServicePrice) <= 0) newErrors.subServicePrice = "Price must be greater than 0.";
+    if (questions.length === 0) newErrors.questions = "At least one question is required."; // Added
     setErrors(prev => ({ ...prev, ...newErrors }));
     return Object.values(newErrors).every(error => !error);
   };
@@ -210,10 +213,8 @@ export default function AdminServices() {
   const validateQuestion = () => {
     const newErrors = { question: "", options: "" };
     if (!newQuestion.trim()) newErrors.question = "Question text is required.";
-    if (questionType === "multiple") {
-      const validOptions = options.filter(opt => opt.option.trim() && opt.price !== "" && !isNaN(parseFloat(opt.price)) && parseFloat(opt.price) >= 0);
-      if (validOptions.length < 2) newErrors.options = "At least 2 options are required, each with text and a price (0 or more).";
-    }
+    const validOptions = options.filter(opt => opt.option.trim() && opt.price !== "" && !isNaN(parseFloat(opt.price)) && parseFloat(opt.price) >= 0);
+    if (validOptions.length < 2) newErrors.options = "At least 2 options are required, each with text and a price (0 or more).";
     setErrors(prev => ({ ...prev, ...newErrors }));
     return Object.values(newErrors).every(error => !error);
   };
@@ -258,7 +259,6 @@ export default function AdminServices() {
     }
   };
 
-
   // --- Add Sub-Service ---
   const addSubService = async () => {
     if (!validateSubServiceForm()) return;
@@ -286,8 +286,8 @@ export default function AdminServices() {
       const formattedQuestions = questions.map((q) => ({
         sub_service_id: insertedSub.id,
         question: q.text,
-        type: q.type,
-        options: q.type === "multiple" ? q.options : null,
+        type: "multiple", // Always multiple
+        options: q.options,
       }));
 
       const { error: qError } = await supabase
@@ -305,7 +305,7 @@ export default function AdminServices() {
     setSubServicePrice("");
     setSelectedService("");
     setQuestions([]);
-    setErrors(prev => ({ ...prev, selectedService: "", subServiceName: "", subServicePrice: "", subServiceDescription: "" }));
+    setErrors(prev => ({ ...prev, selectedService: "", subServiceName: "", subServicePrice: "", questions: "" }));
   };
 
   const removeServiceImage = () => {
@@ -339,14 +339,14 @@ export default function AdminServices() {
       setEditingIndex(index);
       setEditData(questions[index]);
       setNewQuestion(questions[index].text);
-      setQuestionType(questions[index].type);
+      setQuestionType("multiple"); // Always multiple
       setOptions(questions[index].options.length > 0 ? questions[index].options : [{ option: "", price: "" }]);
     } else {
       // Adding new
       setEditingIndex(null);
       setEditData(null);
       setNewQuestion("");
-      setQuestionType("text");
+      setQuestionType("multiple"); // Always multiple
       setOptions([{ option: "", price: "" }]);
     }
     setShowQuestionModal(true);
@@ -357,8 +357,8 @@ export default function AdminServices() {
 
     const newQ = {
       text: newQuestion,
-      type: questionType,
-      options: questionType === "multiple" ? options.filter((opt) => opt.option.trim() !== "" && opt.price !== "" && !isNaN(parseFloat(opt.price)) && parseFloat(opt.price) >= 0) : [],
+      type: "multiple", // Always multiple
+      options: options.filter((opt) => opt.option.trim() !== "" && opt.price !== "" && !isNaN(parseFloat(opt.price)) && parseFloat(opt.price) >= 0),
     };
 
     if (editingIndex !== null) {
@@ -373,7 +373,7 @@ export default function AdminServices() {
 
     // Reset
     setNewQuestion("");
-    setQuestionType("text");
+    setQuestionType("multiple"); // Always multiple
     setOptions([{ option: "", price: "" }]);
     setEditingIndex(null);
     setEditData(null);
@@ -420,7 +420,7 @@ export default function AdminServices() {
         {[
           { icon: Building2, title: "Total Cities", value: cities.length },
           { icon: Wrench, title: "Total Services", value: services.length },
-          { icon: Layers, title: "Total Sub-Services", value: subServices.length },
+          { icon: Layers, title: "Total Plan", value: subServices.length },
         ].map((item, i) => {
           const Icon = item.icon;
 
@@ -494,14 +494,20 @@ export default function AdminServices() {
                 onChange: (e) => {
                   const file = e.target.files?.[0];
                   if (file) {
+                    if (!file.type.startsWith('image/')) {
+                      showToast("Please select a valid image file.", "error");
+                      return;
+                    }
+                    if (file.size > 5 * 1024 * 1024) { // 5MB limit
+                      showToast("Image size should be less than 5MB.", "error");
+                      return;
+                    }
                     setServiceImage(file);
                     setImagePreview(URL.createObjectURL(file));
                   }
                 },
-                error: "",
+                error: errors.serviceImage, // Added
               },
-
-
             ].map((field, idx) => (
               <div key={idx} className="flex flex-col">
                 <label className="text-gray-700 font-medium mb-2">{field.label}</label>
@@ -547,9 +553,6 @@ export default function AdminServices() {
                         </button>
                       </div>
                     )}
-
-
-
                   </>
                 ) : (
                   <input
@@ -586,7 +589,6 @@ export default function AdminServices() {
 
           {/* Form Grid */}
           <div className="flex gap-6 overflow-x-auto pb-4">
-
             {/* Select Service */}
             <div className="flex flex-col min-w-[350px]">
               <label className="text-gray-700 font-medium mb-2">Select Service (with City)</label>
@@ -633,9 +635,7 @@ export default function AdminServices() {
               />
               {errors.subServicePrice && <p className="text-red-500 text-sm mt-1">{errors.subServicePrice}</p>}
             </div>
-
           </div>
-
 
           {/* 📝 Questions Section */}
           <div className="mt-12 bg-white border border-gray-200 rounded-3xl p-8 shadow-md">
@@ -658,9 +658,12 @@ export default function AdminServices() {
             {/* Questions List */}
             <div className="space-y-4">
               {questions.length === 0 ? (
-                <p className="text-gray-500 text-center py-6 border border-dashed border-gray-300 rounded-xl">
-                  No questions added yet.
-                </p>
+                <div>
+                  <p className="text-gray-500 text-center py-6 border border-dashed border-gray-300 rounded-xl">
+                    No questions added yet.
+                  </p>
+                  {errors.questions && <p className="text-red-500 text-sm mt-2">{errors.questions}</p>}
+                </div>
               ) : (
                 questions.map((q, i) => (
                   <div
@@ -670,7 +673,7 @@ export default function AdminServices() {
                     <div>
                       <p className="text-gray-900 font-medium">{q.text}</p>
                       <p className="text-xs text-gray-500 mt-1">
-                        {q.type === "multiple" ? "Multiple Choice" : "Text Answer"}
+                        Multiple Choice
                       </p>
                     </div>
 
@@ -723,7 +726,7 @@ export default function AdminServices() {
                 setEditingIndex(null);
                 setEditData(null);
                 setNewQuestion("");
-                setQuestionType("text");
+                setQuestionType("multiple");
                 setOptions([{ option: "", price: "" }]);
                 setErrors(prev => ({ ...prev, question: "", options: "" }));
               }}
@@ -746,50 +749,37 @@ export default function AdminServices() {
             />
             {errors.question && <p className="text-red-500 text-sm mb-4">{errors.question}</p>}
 
-            {/* Question Type */}
-            <label className="block mb-2 text-sm font-semibold">Question Type</label>
-            <select
-              value={questionType}
-              onChange={(e) => setQuestionType(e.target.value)}
-              className="w-full p-3 border border-gray-300 rounded-xl mb-4 focus:ring-2 focus:ring-red-500 outline-none"
-            >
-              <option value="text">Text Answer</option>
-              <option value="multiple">Multiple Choice (with prices)</option>
-            </select>
+            {/* Options */}
+            <div>
+              <label className="block mb-2 text-sm font-semibold">Options</label>
+              {options.map((opt, i) => (
+                <div key={i} className="flex gap-3 mb-2 items-center">
+                  <input
+                    type="text"
+                    placeholder={`Option ${i + 1}`}
+                    value={opt.option}
+                    onChange={(e) => handleOptionChange(i, e.target.value)}
+                    className="w-2/3 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 outline-none"
+                  />
+                  <input
+                    type="number"
+                    placeholder="Price"
+                    value={opt.price}
+                    onChange={(e) => handleOptionPriceChange(i, e.target.value)}
+                    className="w-1/3 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 outline-none"
+                  />
+                </div>
+              ))}
 
-            {/* Multiple Choice Options with Prices */}
-            {questionType === "multiple" && (
-              <div>
-                <label className="block mb-2 text-sm font-semibold">Options</label>
-                {options.map((opt, i) => (
-                  <div key={i} className="flex gap-3 mb-2 items-center">
-                    <input
-                      type="text"
-                      placeholder={`Option ${i + 1}`}
-                      value={opt.option}
-                      onChange={(e) => handleOptionChange(i, e.target.value)}
-                      className="w-2/3 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 outline-none"
-                    />
-                    <input
-                      type="number"
-                      placeholder="Price"
-                      value={opt.price}
-                      onChange={(e) => handleOptionPriceChange(i, e.target.value)}
-                      className="w-1/3 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 outline-none"
-                    />
-                  </div>
-                ))}
-
-                <button
-                  type="button"
-                  onClick={() => setOptions([...options, { option: "", price: "" }])}
-                  className="text-green-700 text-sm font-semibold mt-1 hover:text-green-800"
-                >
-                  + Add Option
-                </button>
-                {errors.options && <p className="text-red-500 text-sm mt-2">{errors.options}</p>}
-              </div>
-            )}
+              <button
+                type="button"
+                onClick={() => setOptions([...options, { option: "", price: "" }])}
+                className="text-green-700 text-sm font-semibold mt-1 hover:text-green-800"
+              >
+                + Add Option
+              </button>
+              {errors.options && <p className="text-red-500 text-sm mt-2">{errors.options}</p>}
+            </div>
 
             <button
               onClick={saveQuestion}
@@ -800,8 +790,6 @@ export default function AdminServices() {
           </div>
         </div>
       )}
-
-
 
       {/* White footer gap */}
       <div className="bg-white h-24 mt-10 rounded-t-2xl"></div>
@@ -848,7 +836,7 @@ export default function AdminServices() {
       {showDeleteModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-xl shadow-xl w-full max-w-sm">
-            <h2 className="text-xl font-bold text-gray-900 mb-3">DeleteService?</h2>
+            <h2 className="text-xl font-bold text-gray-900 mb-3">Delete Service?</h2>
             <p className="text-gray-600 mb-6">
               Are you sure you want to delete this service? This action cannot be undone.
             </p>

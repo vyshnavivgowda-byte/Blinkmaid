@@ -87,8 +87,7 @@ export default function MaidChangeDashboard() {
     const worksheet = XLSX.utils.json_to_sheet(
       filteredRequests.map((r) => ({
         "Booking ID": r.booking_id,
-        "Old Maid": r.previous_maid_id,
-        "New Maid": r.new_maid_id,
+        "Maid Name": r.previous_maid_id,
         "Changed At": new Date(r.changed_at).toLocaleString(),
         "Reason": r.change_reason || "—",
       }))
@@ -102,11 +101,10 @@ export default function MaidChangeDashboard() {
   const handleDownloadPDF = () => {
     const doc = new jsPDF();
     doc.text("Maid Change Requests", 14, 15);
-    const tableColumn = ["Booking ID", "Old Maid", "New Maid", "Date", "Reason"];
+    const tableColumn = ["Booking ID", "Maid Name", "Date", "Reason"];
     const tableRows = filteredRequests.map((r) => [
       r.booking_id,
       r.previous_maid_id || "-",
-      r.new_maid_id,
       new Date(r.changed_at).toLocaleDateString(),
       r.change_reason || "—",
     ]);
@@ -145,32 +143,45 @@ export default function MaidChangeDashboard() {
               >
                 {/* Hover gradient overlay */}
                 <div className="absolute inset-0 bg-gradient-to-r from-red-500 to-red-700 opacity-0 group-hover:opacity-10 transition-all duration-300 rounded-xl"></div>
-                <div className="flex justify-between items-center relative z-10">
-                  <Icon className="text-red-600" />
-                  <span className="text-3xl font-bold">{item.value}</span>
+                <div className="flex items-center justify-between relative z-10">
+                  {/* Icon with background */}
+                  <div className="bg-red-100 p-3 rounded-xl text-red-600 shadow-sm group-hover:bg-red-200 transition">
+                    <Icon size={28} />
+                  </div>
+
+                  {/* Value */}
+                  <span className="text-3xl font-bold text-gray-900">
+                    {item.value}
+                  </span>
                 </div>
-                <p className="mt-2 text-gray-600 relative z-10">{item.label}</p>
+
+                <p className="mt-2 text-xl font-bold text-gray-800 tracking-wide relative z-10">
+                  {item.label}
+                </p>
               </div>
             );
           })}
         </section>
 
-    
-
-
-        {/* Table */}
-        <section className="bg-white p-6 rounded-xl shadow">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-4">
-            <h2 className="text-xl font-semibold flex gap-2">
-              <ClipboardList className="text-red-600" /> Maid Changes
+        {/* ===== Maid Changes Table ===== */}
+        <section className="bg-white p-6 rounded-2xl shadow-lg border border-gray-100">
+          {/* Header */}
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
+            <h2 className="text-xl font-semibold flex items-center gap-2 text-gray-800">
+              <ClipboardList className="text-red-600" size={22} />
+              Maid Change Reasons
             </h2>
 
-            <div className="flex flex-col sm:flex-row items-center gap-3">
-              <div className="relative">
-                <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
+            <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
+              {/* Search */}
+              <div className="relative w-full sm:w-64">
+                <Search
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                  size={18}
+                />
                 <input
-                  className="pl-10 pr-4 py-2 border rounded-lg"
-                  placeholder="Search..."
+                  className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500"
+                  placeholder="Search booking or reason..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                 />
@@ -180,91 +191,125 @@ export default function MaidChangeDashboard() {
               <div className="flex gap-2">
                 <button
                   onClick={handleDownloadExcel}
-                  className="flex items-center gap-1 bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+                  className="flex items-center gap-1.5 bg-green-600 text-white px-4 py-2.5 rounded-xl hover:bg-green-700 transition"
                 >
-                  <FileSpreadsheet size={16} /> Excel
+                  <FileSpreadsheet size={16} />
+                  Excel
                 </button>
+
                 <button
                   onClick={handleDownloadPDF}
-                  className="flex items-center gap-1 bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
+                  className="flex items-center gap-1.5 bg-red-600 text-white px-4 py-2.5 rounded-xl hover:bg-red-700 transition"
                 >
-                  <FileDown size={16} /> PDF
+                  <FileDown size={16} />
+                  PDF
                 </button>
               </div>
             </div>
           </div>
 
+          {/* Content */}
           {loading ? (
-            <p className="text-center py-10">Loading...</p>
+            <p className="text-center py-12 text-gray-500">
+              Loading maid change reasons...
+            </p>
           ) : (
             <>
-              <table className="w-full text-sm">
-                <thead className="bg-gray-100">
-                  <tr>
-                    <th className="p-3 text-left">#</th>
-                    <th className="p-3 text-left">Booking ID</th>
-                    <th className="p-3 text-left">Old Maid</th>
-                    <th className="p-3 text-left">New Maid</th>
-                    <th className="p-3 text-left">Date</th>
-                    <th className="p-3 text-center">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {paginatedRequests.map((r, i) => (
-                    <tr key={r.id} className="border-b">
-                      <td className="p-3">{(currentPage - 1) * itemsPerPage + i + 1}</td>
-                      <td className="p-3">{r.booking_id}</td>
-                      <td className="p-3">{r.previous_maid_id || "-"}</td>
-                      <td className="p-3">{r.new_maid_id}</td>
-                      <td className="p-3">{new Date(r.changed_at).toLocaleDateString()}</td>
-                      <td className="p-3 flex justify-center gap-3">
-                        <button
-                          onClick={() => {
-                            setSelectedRequest(r);
-                            setShowModal(true);
-                          }}
-                          className="text-blue-600"
-                        >
-                          <Eye size={18} />
-                        </button>
-                        <button
-                          onClick={() => {
-                            setDeleteId(r.id);
-                            setShowDeleteModal(true);
-                          }}
-                          className="text-red-600"
-                        >
-                          <Trash2 size={18} />
-                        </button>
-                      </td>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-gray-100 text-gray-600 uppercase text-xs tracking-wide">
+                      <th className="p-4 text-left">#</th>
+                      <th className="p-4 text-left">Booking ID</th>
+                      <th className="p-4 text-left">Change Reason</th>
+                      <th className="p-4 text-left">Date</th>
+                      <th className="p-4 text-center">Actions</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+
+                  <tbody>
+                    {paginatedRequests.map((r, i) => (
+                      <tr
+                        key={r.id}
+                        className="border-b hover:bg-red-50/40 transition"
+                      >
+                        <td className="p-4 font-medium text-gray-700">
+                          {(currentPage - 1) * itemsPerPage + i + 1}
+                        </td>
+
+                        <td className="p-4 text-gray-700">
+                          <span className="bg-gray-100 px-3 py-1 rounded-lg text-xs">
+                            {r.booking_id}
+                          </span>
+                        </td>
+
+                        <td className="p-4 text-gray-600 max-w-md">
+                          {r.change_reason}
+                        </td>
+
+                        <td className="p-4 text-gray-500">
+                          {new Date(r.changed_at).toLocaleDateString()}
+                        </td>
+
+                        <td className="p-4">
+                          <div className="flex justify-center gap-4">
+                            <button
+                              onClick={() => {
+                                setSelectedRequest(r);
+                                setShowModal(true);
+                              }}
+                              className="text-blue-600 hover:text-blue-800 transition"
+                              title="View"
+                            >
+                              <Eye size={18} />
+                            </button>
+
+                            <button
+                              onClick={() => {
+                                setDeleteId(r.id);
+                                setShowDeleteModal(true);
+                              }}
+                              className="text-red-600 hover:text-red-800 transition"
+                              title="Delete"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
 
               {/* Pagination */}
               {totalPages > 1 && (
-                <div className="flex justify-center gap-2 mt-4">
+                <div className="flex justify-center items-center gap-2 mt-6">
                   <button
-                    className="px-3 py-1 border rounded hover:bg-gray-100"
                     onClick={() => goToPage(currentPage - 1)}
                     disabled={currentPage === 1}
+                    className="px-4 py-2 rounded-lg border disabled:opacity-40 hover:bg-gray-100"
                   >
                     Previous
                   </button>
+
                   {[...Array(totalPages)].map((_, i) => (
                     <button
                       key={i}
-                      className={`px-3 py-1 border rounded ${currentPage === i + 1 ? "bg-red-600 text-white" : "hover:bg-gray-100"}`}
                       onClick={() => goToPage(i + 1)}
+                      className={`px-4 py-2 rounded-lg border transition ${currentPage === i + 1
+                        ? "bg-red-600 text-white border-red-600"
+                        : "hover:bg-gray-100"
+                        }`}
                     >
                       {i + 1}
                     </button>
                   ))}
+
                   <button
-                    className="px-3 py-1 border rounded hover:bg-gray-100"
                     onClick={() => goToPage(currentPage + 1)}
                     disabled={currentPage === totalPages}
+                    className="px-4 py-2 rounded-lg border disabled:opacity-40 hover:bg-gray-100"
                   >
                     Next
                   </button>
@@ -273,6 +318,7 @@ export default function MaidChangeDashboard() {
             </>
           )}
         </section>
+
       </main>
 
       {/* View Modal */}
@@ -281,8 +327,7 @@ export default function MaidChangeDashboard() {
           <div className="bg-white p-6 rounded-xl w-full max-w-lg">
             <h2 className="text-xl font-bold mb-3">Change Details</h2>
             <p><b>Booking:</b> {selectedRequest.booking_id}</p>
-            <p><b>Old Maid:</b> {selectedRequest.previous_maid_id}</p>
-            <p><b>New Maid:</b> {selectedRequest.new_maid_id}</p>
+            <p><b>Maid Name:</b> {selectedRequest.previous_maid_id}</p>
             <p className="mt-3">
               <b>Reason:</b>
               <span className="block bg-gray-100 p-3 mt-1 rounded">{selectedRequest.change_reason || "—"}</span>

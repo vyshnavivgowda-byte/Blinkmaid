@@ -24,7 +24,7 @@ export default function ServiceListPage() {
   const [services, setServices] = useState([]);
   const [cities, setCities] = useState([]);
   const [subServices, setSubServices] = useState([]);
-const [subServiceQuestions, setSubServiceQuestions] = useState({});
+  const [subServiceQuestions, setSubServiceQuestions] = useState({});
 
   // Services modal state
   const [viewService, setViewService] = useState(null);
@@ -39,7 +39,7 @@ const [subServiceQuestions, setSubServiceQuestions] = useState({});
   // Delete modal - general for both services and sub-services
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteItem, setDeleteItem] = useState({ id: null, type: null }); // type: "service" | "subService"
-const [editQuestions, setEditQuestions] = useState([]);
+  const [editQuestions, setEditQuestions] = useState([]);
 
   // Edit modal states for service & sub-service
   const [showEditModal, setShowEditModal] = useState(false);
@@ -60,37 +60,40 @@ const [editQuestions, setEditQuestions] = useState([]);
 
   // 🔹 Fetch data
   const fetchData = async () => {
-  const { data: cityData } = await supabase.from("cities").select("*");
-  const { data: serviceData } = await supabase.from("services").select("*");
-  const { data: subData } = await supabase.from("sub_services").select("*");
-  const { data: questionData } = await supabase.from("sub_service_questions").select("*");
+    const { data: cityData } = await supabase.from("cities").select("*");
+    const { data: serviceData } = await supabase.from("services").select("*");
+    const { data: subData } = await supabase.from("sub_services").select("*");
+    const { data: questionData } = await supabase.from("sub_service_questions").select("*");
 
-  setCities(cityData || []);
-  setServices(serviceData || []);
-  setSubServices(subData || []);
+    setCities(cityData || []);
+    setServices(serviceData || []);
+    setSubServices(subData || []);
 
-  // Organize questions by sub_service_id
- const questionsMap = {};
-(questionData || []).forEach((q) => {
-  if (!questionsMap[q.sub_service_id]) {
-    questionsMap[q.sub_service_id] = [];
-  }
+    // Organize questions by sub_service_id
+    const questionsMap = {};
+    (questionData || []).forEach((q) => {
+      if (!questionsMap[q.sub_service_id]) {
+        questionsMap[q.sub_service_id] = [];
+      }
 
-  questionsMap[q.sub_service_id].push({
-    id: q.id,
-    question: q.question,
-    type: q.type || "text",
-    options: Array.isArray(q.options)
-      ? q.options.map((o) =>
-          typeof o === "string" ? o : o?.label || o?.value || ""
-        )
-      : [],
-  });
-});
+      questionsMap[q.sub_service_id].push({
+        id: q.id,
+        question: q.question,
+        type: q.type || "text",
+        options: Array.isArray(q.options)
+          ? q.options.map((o) => {
+            // If it's an object with 'option', return that
+            if (typeof o === "object" && o.option) return `${o.option} (${o.price || "-"})`;
+            return o;
+          })
+          : [],
+      });
 
-setSubServiceQuestions(questionsMap);
+    });
 
-};
+    setSubServiceQuestions(questionsMap);
+
+  };
 
 
   useEffect(() => {
@@ -213,6 +216,34 @@ setSubServiceQuestions(questionsMap);
         name: sub.name,
         price: sub.price,
       });
+
+      // 🔹 Set questions for this sub-service with proper options objects
+      setEditQuestions(
+        (subServiceQuestions[sub.id] || []).map((q) => ({
+          id: q.id,
+          question: q.question,
+          type: q.type || "text",
+          options: Array.isArray(q.options)
+            ? q.options.map((o) => {
+              // If stored as "Option Name (Price)", split it
+              if (typeof o === "string" && o.includes("(") && o.includes(")")) {
+                const match = o.match(/(.*)\s*\((.*)\)/);
+                return {
+                  option: match ? match[1].trim() : o,
+                  price: match ? match[2].trim() : "",
+                };
+              } else if (typeof o === "object") {
+                return {
+                  option: o.option || "",
+                  price: o.price || "",
+                };
+              }
+              return { option: o, price: "" };
+            })
+            : [],
+        }))
+      );
+
       setShowEditSubModal(true);
     }
   };
@@ -222,68 +253,68 @@ setSubServiceQuestions(questionsMap);
     setEditSubServiceData((prev) => ({ ...prev, [name]: value }));
   };
 
- const handleEditSubSubmit = async (e) => {
-  e.preventDefault();
+  const handleEditSubSubmit = async (e) => {
+    e.preventDefault();
 
-  const { id, service_id, name, price } = editSubServiceData;
+    const { id, service_id, name, price } = editSubServiceData;
 
-  if (!name.trim()) {
-    showToast("Sub-service name is required", "error");
-    return;
-  }
-  if (!price || isNaN(price) || Number(price) < 0) {
-    showToast("Valid price is required", "error");
-    return;
-  }
-  if (!service_id) {
-    showToast("Parent service must be selected", "error");
-    return;
-  }
+    if (!name.trim()) {
+      showToast("Sub-service name is required", "error");
+      return;
+    }
+    if (!price || isNaN(price) || Number(price) < 0) {
+      showToast("Valid price is required", "error");
+      return;
+    }
+    if (!service_id) {
+      showToast("Parent service must be selected", "error");
+      return;
+    }
 
-  const { error } = await supabase
-    .from("sub_services")
-    .update({
-      name: name.trim(),
-      price: Number(price),
-      service_id,
-    })
-    .eq("id", id);
+    const { error } = await supabase
+      .from("sub_services")
+      .update({
+        name: name.trim(),
+        price: Number(price),
+        service_id,
+      })
+      .eq("id", id);
 
-  if (error) {
-    showToast("Failed to update sub-service", "error");
-    return;
-  }
+    if (error) {
+      showToast("Failed to update Plan", "error");
+      return;
+    }
 
-  // 🔹 Update questions
-  await supabase
-    .from("sub_service_questions")
-    .delete()
-    .eq("sub_service_id", id);
+    // 🔹 Update questions
+    await supabase
+      .from("sub_service_questions")
+      .delete()
+      .eq("sub_service_id", id);
 
-  if (editQuestions.length > 0) {
-    await supabase.from("sub_service_questions").insert(
-      editQuestions.map((q) => ({
-        sub_service_id: id,
-        question: q.question,
-        type: q.type,
-        options: q.options,
-      }))
-    );
-  }
+    if (editQuestions.length > 0) {
+      await supabase.from("sub_service_questions").insert(
+        editQuestions.map((q) => ({
+          sub_service_id: id,
+          question: q.question,
+          type: q.type,
+          options: q.options,
+        }))
+      );
+    }
 
-  showToast("Sub-service updated successfully", "success");
-  fetchData();
-  setShowEditSubModal(false);
-};
+    showToast("Plan updated successfully", "success");
+    fetchData();
+    setShowEditSubModal(false);
+  };
 
-const handleEditSubService = (sub) => {
-  setEditSubServiceData(sub);
+  const handleEditSubService = (sub) => {
+    setEditSubServiceData(sub);
 
-  // 👇 ADD THIS LINE HERE
-  setEditQuestions(subServiceQuestions[sub.id] || []);
+    // 👇 ADD THIS LINE HERE
+    setEditQuestions(subServiceQuestions[sub.id] || []);
 
-  setShowEditSubModal(true);
-};
+    setShowEditSubModal(true);
+  };
 
   // --- Excel & PDF for sub-services ---
 
@@ -301,16 +332,16 @@ const handleEditSubService = (sub) => {
     );
 
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, sheet, "Sub-Services");
+    XLSX.utils.book_append_sheet(wb, sheet, "Plans");
     XLSX.writeFile(wb, "sub_services.xlsx");
   };
 
   const downloadPDFSubServices = () => {
     const doc = new jsPDF();
-    doc.text("Sub-Service List", 14, 15);
+    doc.text("Plan List", 14, 15);
 
     doc.autoTable({
-      head: [["#", "Service", "Sub-Service", "Price", "Working Hours"]],
+      head: [["#", "Service", "Plan", "Price", "Working Hours"]],
       body: subServices.map((ss, i) => {
         const service = services.find((s) => s.id === ss.service_id);
         return [
@@ -333,7 +364,7 @@ const handleEditSubService = (sub) => {
       <header className="bg-gradient-to-r from-red-700 to-gray-900 text-white px-8 py-10 rounded-b-3xl shadow-lg">
         <h1 className="text-4xl font-extrabold tracking-tight">Services List</h1>
         <p className="text-gray-300 mt-2 text-lg">
-          Update, track, and organize all your services and sub-services efficiently.
+          Update, track, and organize all your services and Plans efficiently.
         </p>
       </header>
 
@@ -342,7 +373,7 @@ const handleEditSubService = (sub) => {
         {[
           { icon: Building2, title: "Total Cities", value: cities.length },
           { icon: Wrench, title: "Total Services", value: services.length },
-          { icon: Layers, title: "Total Sub-Services", value: subServices.length },
+          { icon: Layers, title: "Total Plans", value: subServices.length },
         ].map((item, i) => {
           const Icon = item.icon;
           return (
@@ -457,14 +488,14 @@ const handleEditSubService = (sub) => {
           <button
             onClick={() => downloadExcelSubServices()}
             className="bg-green-600 text-white px-4 py-2 rounded-xl flex gap-2 hover:bg-green-700 transition"
-            aria-label="Download Sub-Services Excel"
+            aria-label="Download Plans Excel"
           >
             <FileSpreadsheet size={18} /> Excel
           </button>
           <button
             onClick={() => downloadPDFSubServices()}
             className="bg-red-600 text-white px-4 py-2 rounded-xl flex gap-2 hover:bg-red-700 transition"
-            aria-label="Download Sub-Services PDF"
+            aria-label="Download Plans PDF"
           >
             <FileDown size={18} /> PDF
           </button>
@@ -478,9 +509,9 @@ const handleEditSubService = (sub) => {
             <tr>
               <th className="px-6 py-3 text-left">#</th>
               <th className="px-6 py-3 text-left">Service</th>
-              <th className="px-6 py-3 text-left">Sub-Service</th>
+              <th className="px-6 py-3 text-left">Plan</th>
               <th className="px-6 py-3 text-left">Price</th>
-<th className="px-6 py-3 text-left">Questions</th>
+              <th className="px-6 py-3 text-left">Questions</th>
               <th className="px-6 py-3 text-center">Actions</th>
             </tr>
           </thead>
@@ -495,14 +526,14 @@ const handleEditSubService = (sub) => {
                   <td className="px-6 py-3 font-semibold">{ss.name}</td>
                   <td className="px-6 py-3">₹{ss.price}</td>
                   <td className="px-6 py-3">
-  {subServiceQuestions[ss.id]?.length || 0}
-</td>
+                    {subServiceQuestions[ss.id]?.length || 0}
+                  </td>
 
                   <td className="px-6 py-3 flex justify-center gap-3">
                     <button
                       onClick={() => handleViewSubService(ss.id)}
                       className="text-blue-600 hover:text-blue-800"
-                      aria-label={`View details of sub-service ${ss.name}`}
+                      aria-label={`View details of Plan ${ss.name}`}
                       title="View"
                     >
                       <Eye size={18} />
@@ -510,7 +541,7 @@ const handleEditSubService = (sub) => {
                     <button
                       onClick={() => handleEditSubOpen(ss.id)}
                       className="text-yellow-600 hover:text-yellow-800"
-                      aria-label={`Edit sub-service ${ss.name}`}
+                      aria-label={`Edit Plan ${ss.name}`}
                       title="Edit"
                     >
                       <Edit2 size={18} />
@@ -518,7 +549,7 @@ const handleEditSubService = (sub) => {
                     <button
                       onClick={() => handleDelete(ss.id, "subService")}
                       className="text-red-600 hover:text-red-800"
-                      aria-label={`Delete sub-service ${ss.name}`}
+                      aria-label={`Delete Plan ${ss.name}`}
                       title="Delete"
                     >
                       <Trash2 size={18} />
@@ -554,7 +585,7 @@ const handleEditSubService = (sub) => {
               <b>Price:</b> ₹{viewService?.price}
             </p>
 
-            <h3 className="mt-4 font-semibold">Sub-Services</h3>
+            <h3 className="mt-4 font-semibold">Plan</h3>
             {viewSubServices.length ? (
               <ul className="list-disc ml-5">
                 {viewSubServices.map((ss) => (
@@ -564,7 +595,7 @@ const handleEditSubService = (sub) => {
                 ))}
               </ul>
             ) : (
-              <p className="text-gray-500">No sub-services</p>
+              <p className="text-gray-500">No Plan</p>
             )}
           </div>
         </div>
@@ -572,48 +603,95 @@ const handleEditSubService = (sub) => {
 
       {/* --- View Sub-Service Modal --- */}
       {showViewSubModal && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full relative shadow-xl">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl shadow-xl w-full max-w-lg relative overflow-y-auto max-h-[90vh]">
+            {/* Close Button */}
             <button
               onClick={() => setShowViewSubModal(false)}
-              className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
-              aria-label="Close sub-service view modal"
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 transition"
+              aria-label="Close Plan view modal"
             >
               <X size={24} />
             </button>
 
-            <h2 className="text-xl font-bold mb-4">Sub-Service Details</h2>
-            <p>
-              <b>Parent Service:</b>{" "}
-              {services.find((s) => s.id === viewSubService?.service_id)?.name || "—"}
-            </p>
-            <p>
-              <b>Name:</b> {viewSubService?.name}
-            </p>
-            <p>
-              <b>Price:</b> ₹{viewSubService?.price}
-            </p>
-            <div>
-<h3 className="mt-4 font-semibold">Questions</h3>
+            {/* Header */}
+            <div className="px-6 py-5 border-b border-gray-200">
+              <h2 className="text-2xl font-bold text-gray-800">Plan Details</h2>
+            </div>
 
-{subServiceQuestions[viewSubService?.id]?.length ? (
-  <ul className="list-disc ml-5">
-    {subServiceQuestions[viewSubService.id].map((q) => (
-      <li key={q.id}>
-        <b>{q.question}</b> ({q.type})
-        {q.options.length > 0 && (
-          <ul className="list-inside list-disc ml-4">
-            {q.options.map((opt, i) => (
-              <li key={i}>{opt}</li>
-            ))}
-          </ul>
-        )}
-      </li>
-    ))}
-  </ul>
-) : (
-  <p className="text-gray-500">No questions added</p>
-)}
+            {/* Content */}
+            <div className="px-6 py-6 space-y-4">
+              {/* Parent Service */}
+              <div className="flex justify-between">
+                <span className="font-semibold text-gray-700">Parent Service:</span>
+                <span className="text-gray-900 font-medium">
+                  {services.find((s) => s.id === viewSubService?.service_id)?.name || "—"}
+                </span>
+              </div>
+
+              {/* Location / City */}
+              <div className="flex justify-between">
+                <span className="font-semibold text-gray-700">Location:</span>
+                <span className="text-gray-900 font-medium">
+                  {cities.find(
+                    (c) => c.id === services.find((s) => s.id === viewSubService?.service_id)?.city_id
+                  )?.name || "—"}
+                </span>
+              </div>
+
+              {/* Sub-Service Name */}
+              <div className="flex justify-between">
+                <span className="font-semibold text-gray-700">Plan Name:</span>
+                <span className="text-gray-900 font-medium">{viewSubService?.name}</span>
+              </div>
+
+              {/* Price */}
+              <div className="flex justify-between">
+                <span className="font-semibold text-gray-700">Price:</span>
+                <span className="text-gray-900 font-bold">₹{viewSubService?.price}</span>
+              </div>
+
+              {/* Questions */}
+              <div>
+                <h3 className="font-semibold text-gray-800 mb-2">Questions</h3>
+                {subServiceQuestions[viewSubService?.id]?.length ? (
+                  <div className="space-y-3">
+                    {subServiceQuestions[viewSubService.id].map((q) => (
+                      <div key={q.id} className="border border-gray-200 rounded-lg p-3 bg-gray-50">
+                        <p className="font-medium text-gray-800 mb-1">
+                          {q.question} <span className="text-sm text-gray-500">({q.type})</span>
+                        </p>
+                        {q.options.length > 0 && (
+                          <div className="flex flex-wrap gap-2">
+                            {q.options.map((opt, i) => {
+                              if (typeof opt === "object" && opt.option && opt.price) {
+                                return (
+                                  <span
+                                    key={i}
+                                    className="bg-gray-200 text-gray-800 px-3 py-1 rounded-full text-sm font-medium"
+                                  >
+                                    {opt.option} ₹{opt.price}
+                                  </span>
+                                );
+                              }
+                              return (
+                                <span
+                                  key={i}
+                                  className="bg-gray-200 text-gray-800 px-3 py-1 rounded-full text-sm font-medium"
+                                >
+                                  {opt}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-gray-500 italic">No questions added</p>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -734,157 +812,227 @@ const handleEditSubService = (sub) => {
           </div>
         </div>
       )}
-
-      {/* --- Edit Sub-Service Modal --- */}
-      {showEditSubModal && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full relative shadow-xl">
-            <button
-              onClick={() => setShowEditSubModal(false)}
-              className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
-              aria-label="Close edit sub-service modal"
-            >
-              <X size={24} />
-            </button>
-
-            <h2 className="text-xl font-bold mb-4">Edit Sub-Service</h2>
-
-            <form onSubmit={handleEditSubSubmit} className="space-y-4">
-              <div>
-                <label htmlFor="name" className="block font-semibold mb-1">
-                  Sub-Service Name
-                </label>
-                <input
-                  id="name"
-                  name="name"
-                  type="text"
-                  value={editSubServiceData.name}
-                  onChange={handleEditSubChange}
-                  className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500"
-                  required
-                />
-              </div>
-
-              <div>
-                <label htmlFor="price" className="block font-semibold mb-1">
-                  Price (₹)
-                </label>
-                <input
-                  id="price"
-                  name="price"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={editSubServiceData.price}
-                  onChange={handleEditSubChange}
-                  className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500"
-                  required
-                />
-              </div>
-
-              <div>
-  <label className="block font-semibold mb-1">Questions</label>
-
-  {editQuestions.map((q, index) => (
-    <div key={index} className="border p-2 rounded mb-2">
-      <input
-        className="w-full border px-2 py-1 mb-1"
-        value={q.question}
-        placeholder="Question"
-        onChange={(e) => {
-          const copy = [...editQuestions];
-          copy[index].question = e.target.value;
-          setEditQuestions(copy);
-        }}
-      />
-
-      <select
-        className="w-full border px-2 py-1 mb-1"
-        value={q.type}
-        onChange={(e) => {
-          const copy = [...editQuestions];
-          copy[index].type = e.target.value;
-          setEditQuestions(copy);
-        }}
+{/* --- Edit Sub-Service Modal --- */}
+{showEditSubModal && (
+  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl relative overflow-y-auto max-h-[90vh]">
+      
+      {/* Close Button */}
+      <button
+        onClick={() => setShowEditSubModal(false)}
+        className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 transition"
+        aria-label="Close edit plan modal"
       >
-        <option value="text">Text</option>
-        <option value="radio">Radio</option>
-        <option value="checkbox">Checkbox</option>
-      </select>
+        <X size={24} />
+      </button>
 
+      {/* Header */}
+      <div className="px-8 py-6 border-b border-gray-200">
+        <h2 className="text-3xl font-bold text-gray-800">Edit Plan</h2>
+        <p className="text-gray-500 mt-1">Update Plan details, questions, and options.</p>
+      </div>
+
+      {/* Form */}
+      <form onSubmit={handleEditSubSubmit} className="px-8 py-6 space-y-6">
+        
+        {/* Plan Info */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block font-semibold mb-1">Plan Name</label>
+            <input
+              type="text"
+              name="name"
+              value={editSubServiceData.name}
+              onChange={handleEditSubChange}
+              className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500"
+              placeholder="Enter plan name"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block font-semibold mb-1">Price (₹)</label>
+            <input
+              type="number"
+              name="price"
+              value={editSubServiceData.price}
+              min="0"
+              step="0.01"
+              onChange={handleEditSubChange}
+              className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500"
+              placeholder="Enter price"
+              required
+            />
+          </div>
+        </div>
+
+        {/* Parent Service */}
+        <div>
+          <label className="block font-semibold mb-1">Parent Service</label>
+          <select
+            name="service_id"
+            value={editSubServiceData.service_id ?? ""}
+            onChange={handleEditSubChange}
+            className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500"
+            required
+          >
+            <option value="" disabled>Select service</option>
+            {services.map((service) => (
+              <option key={service.id} value={service.id}>{service.name}</option>
+            ))}
+          </select>
+        </div>
+
+{/* Questions Section */}
+<div>
+  <div className="flex items-center justify-between mb-2">
+    <label className="block font-semibold text-gray-800">Questions</label>
+    <button
+      type="button"
+      onClick={() =>
+        setEditQuestions([
+          ...editQuestions,
+          { question: "", type: "text", options: [] },
+        ])
+      }
+      className="text-green-600 hover:text-green-800 font-semibold"
+    >
+      + Add Question
+    </button>
+  </div>
+
+  <div className="space-y-4">
+    {editQuestions.map((q, qIndex) => (
+      <div
+        key={qIndex}
+        className="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-3 shadow-sm"
+      >
+        {/* Question Header */}
+        <div className="flex justify-between items-center">
+          <span className="font-medium text-gray-700">
+            Question {qIndex + 1}
+          </span>
+          <button
+            type="button"
+            onClick={() => {
+              const newQuestions = [...editQuestions];
+              newQuestions.splice(qIndex, 1);
+              setEditQuestions(newQuestions);
+            }}
+            className="text-red-600 hover:text-red-800 font-semibold"
+          >
+            Delete
+          </button>
+        </div>
+
+        {/* Question Text */}
+        <input
+          type="text"
+          value={q.question}
+          onChange={(e) => {
+            const newQuestions = [...editQuestions];
+            newQuestions[qIndex].question = e.target.value;
+            setEditQuestions(newQuestions);
+          }}
+          placeholder="Enter question text"
+          className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-400"
+        />
+
+      {/* Question Type */}
+<select
+  value={q.type}
+  onChange={(e) => {
+    const newQuestions = [...editQuestions];
+    newQuestions[qIndex].type = "select"; // always "select"
+    setEditQuestions(newQuestions);
+  }}
+  className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-400"
+>
+  <option value="select">Multiple Choice</option>
+</select>
+
+{/* Options (always enabled) */}
+<div className="space-y-2">
+  {q.options.map((opt, oIndex) => (
+    <div key={oIndex} className="flex gap-2 items-center">
       <input
-        className="w-full border px-2 py-1"
-        placeholder="Options (comma separated)"
-        value={q.options.join(",")}
+        type="text"
+        value={opt.option}
         onChange={(e) => {
-          const copy = [...editQuestions];
-          copy[index].options = e.target.value
-            .split(",")
-            .map((o) => o.trim())
-            .filter(Boolean);
-          setEditQuestions(copy);
+          const newQuestions = [...editQuestions];
+          newQuestions[qIndex].options[oIndex].option = e.target.value;
+          setEditQuestions(newQuestions);
         }}
+        placeholder="Option"
+        className="flex-1 border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-gray-400"
       />
+      <input
+        type="number"
+        min="0"
+        value={opt.price}
+        onChange={(e) => {
+          const newQuestions = [...editQuestions];
+          newQuestions[qIndex].options[oIndex].price = e.target.value;
+          setEditQuestions(newQuestions);
+        }}
+        placeholder="Price"
+        className="w-24 border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-gray-400"
+      />
+      <button
+        type="button"
+        onClick={() => {
+          const newQuestions = [...editQuestions];
+          newQuestions[qIndex].options.splice(oIndex, 1);
+          setEditQuestions(newQuestions);
+        }}
+        className="text-red-600 hover:text-red-800 font-semibold"
+      >
+        Delete
+      </button>
     </div>
   ))}
 
   <button
     type="button"
-    onClick={() =>
-      setEditQuestions([
-        ...editQuestions,
-        { question: "", type: "text", options: [] },
-      ])
-    }
-    className="mt-2 px-3 py-1 bg-gray-200 rounded"
+    onClick={() => {
+      const newQuestions = [...editQuestions];
+      newQuestions[qIndex].options.push({ option: "", price: "" });
+      setEditQuestions(newQuestions);
+    }}
+    className="text-blue-600 hover:text-blue-800 font-semibold mt-1"
   >
-    Add Question
+    + Add Option
   </button>
 </div>
 
+      </div>
+    ))}
+  </div>
+</div>
 
-              <div>
-                <label htmlFor="service_id" className="block font-semibold mb-1">
-                  Parent Service
-                </label>
-                <select
-                  id="service_id"
-                  name="service_id"
-                  value={editSubServiceData.service_id ?? ""}
-                  onChange={handleEditSubChange}
-                  className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500"
-                  required
-                >
-                  <option value="" disabled>
-                    Select service
-                  </option>
-                  {services.map((service) => (
-                    <option key={service.id} value={service.id}>
-                      {service.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
 
-              <div className="flex justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setShowEditSubModal(false)}
-                  className="px-4 py-2 rounded border border-gray-300 hover:bg-gray-100 transition"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition"
-                >
-                  Save
-                </button>
-              </div>
-            </form>
-          </div>
+        {/* Form Actions */}
+        <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+          <button
+            type="button"
+            onClick={() => setShowEditSubModal(false)}
+            className="px-4 py-2 rounded-lg border border-gray-300 hover:bg-gray-100 transition"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            className="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 transition"
+          >
+            Save Changes
+          </button>
         </div>
-      )}
+      </form>
+    </div>
+  </div>
+)}
+
+
     </div>
   );
 }
