@@ -1,13 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { motion } from "framer-motion";
+
 import { 
-  User, MapPin, Briefcase, 
-  DollarSign, CheckCircle, Star, ArrowRight, ShieldCheck, Zap 
+  User,
+  MapPin,
+  Briefcase,
+  DollarSign,
+  CheckCircle,
+  ArrowRight,
+  ShieldCheck,
+  Zap,
+  Loader2
 } from "lucide-react";
-import toast from "react-hot-toast";
+
 
 export default function MaidRegistrationForm() {
   const [formData, setFormData] = useState({
@@ -21,6 +29,17 @@ export default function MaidRegistrationForm() {
 
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
+  // Add this near your other useState hooks
+const [activeStep, setActiveStep] = useState(0);
+
+// Logic to determine active step based on form progress
+const getActiveStep = () => {
+  if (formData.workTypes.length > 0) return 3; // Specialization done
+  if (formData.experience && formData.salary) return 2; // Expertise done
+  if (Object.values(formData.address).some(val => val !== "")) return 1; // Geography started
+  return 0; // Identity/Start
+};
+
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -54,23 +73,46 @@ export default function MaidRegistrationForm() {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!validateForm()) return;
-    setLoading(true);
-    const { error } = await supabase.from("maids").insert([{ 
-        ...formData, 
-        experience: parseInt(formData.experience), 
-        salary: parseFloat(formData.salary),
-        work_types: formData.workTypes 
-    }]);
+  e.preventDefault();
+  if (!validateForm()) return;
 
-    if (error) toast.error("Registration failed.");
-    else {
-      toast.success("Profile submitted for review.");
-      setFormData({ name: "", number: "", address: { house: "", street: "", area: "", landmark: "", city: "", pincode: "" }, experience: "", salary: "", workTypes: [] });
+  setLoading(true);
+
+  const phone = formData.number.replace(/\D/g, "").slice(-10);
+
+  const { error } = await supabase.from("maids").insert([
+    {
+      name: formData.name,
+      number: phone,
+      address: formData.address,      // jsonb
+      experience: Number(formData.experience),
+      salary: Number(formData.salary),
+      work_types: formData.workTypes  // text[]
     }
-    setLoading(false);
-  };
+  ]);
+
+  if (error) {
+    console.error(error);
+    toast.error(error.message);
+  } else {
+    toast.success("Profile submitted for review.");
+    setFormData({
+      name: "",
+      number: "",
+      address: { house: "", street: "", area: "", landmark: "", city: "", pincode: "" },
+      experience: "",
+      salary: "",
+      workTypes: [],
+    });
+  }
+
+  setLoading(false);
+};
+
+// Update activeStep whenever formData changes
+useEffect(() => {
+  setActiveStep(getActiveStep());
+}, [formData]);
 
   const workOptions = ["Cooking", "Cleaning", "Baby Care", "Elderly Care", "Washing", "Ironing"];
 
@@ -82,7 +124,7 @@ export default function MaidRegistrationForm() {
         {/* The Background Image */}
         <div className="absolute inset-0 z-0">
           <img 
-            src="https://images.unsplash.com/photo-1584622781564-1d9876a13d00?q=80&w=2070&auto=format&fit=crop" 
+            src="https://as1.ftcdn.net/v2/jpg/07/89/20/88/1000_F_789208828_dbryx91mavLaoIHAKncu6FChHkfnMbmM.jpg" 
             alt="Elite Service"
             className="w-full h-full object-cover scale-105"
           />
@@ -121,27 +163,89 @@ export default function MaidRegistrationForm() {
       </section>
 
       {/* ---------------- SECTION 2: BENTO STATS / INFO ---------------- */}
-      <section className="py-24 px-6 max-w-7xl mx-auto -mt-20 relative z-20">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {[
-            { title: "PREMIUM EARNINGS", value: "25% Higher", desc: "Our partners earn significantly more than market average." },
-            { title: "SECURE IDENTITY", value: "Fully Vetted", desc: "Every professional undergoes a gold-standard background check." },
-            { title: "RAPID DEPLOYMENT", value: "48 Hours", desc: "Get matched with high-profile clients within two business days." },
-          ].map((card, i) => (
-            <motion.div 
-              key={i}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.1 }}
-              className="bg-white p-10 rounded-[3rem] shadow-xl border border-gray-100 group hover:border-blinkred transition-all"
-            >
-              <h3 className="text-[10px] font-black tracking-[0.2em] text-gray-400 mb-4">{card.title}</h3>
-              <p className="text-3xl font-black mb-2">{card.value}</p>
-              <p className="text-gray-500 text-sm leading-relaxed">{card.desc}</p>
-            </motion.div>
-          ))}
+      <section className="py-32 px-6 max-w-7xl mx-auto mt-20 relative z-20 mt-5">
+  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+    {[
+      {
+        tag: "EARNINGS",
+        title: "Premium Earnings",
+        value: "25% Higher",
+        desc: "Our partners earn significantly more than the market average.",
+        icon: DollarSign,
+      },
+      {
+        tag: "SECURITY",
+        title: "Secure Identity",
+        value: "Fully Vetted",
+        desc: "Every professional undergoes a gold-standard background verification.",
+        icon: ShieldCheck,
+      },
+      {
+        tag: "SPEED",
+        title: "Rapid Deployment",
+        value: "48 Hours",
+        desc: "Get matched with high-profile clients within two business days.",
+        icon: Zap,
+      },
+    ].map((card, i) => (
+      <motion.div
+        key={i}
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ delay: i * 0.15 }}
+        className="group relative p-10 rounded-[2.5rem] bg-white
+                   border border-gray-100 hover:border-blinkred/20
+                   transition-all duration-500 overflow-hidden
+                   shadow-sm hover:shadow-xl"
+      >
+        {/* CONTENT */}
+        <div className="relative z-10">
+          {/* TAG */}
+          <span className="text-[10px] font-semibold text-red-600 uppercase tracking-[0.3em] mb-6 block opacity-90">
+            {card.tag}
+          </span>
+
+          {/* ICON */}
+          <div className="w-14 h-14 bg-gray-50 rounded-2xl flex items-center justify-center mb-6
+                          group-hover:bg-blinkred transition-colors duration-500">
+            <card.icon className="w-6 h-6 text-blinkblack group-hover:text-white transition-colors duration-500" />
+          </div>
+
+          {/* TITLE */}
+          <h3 className="text-xl font-black uppercase tracking-tight mb-1">
+            {card.title}
+          </h3>
+
+          {/* VALUE */}
+          <p className="text-2xl font-black text-slate-900 mb-3">
+            {card.value}
+          </p>
+
+          {/* DESCRIPTION */}
+          <p className="text-gray-500 text-sm leading-relaxed mb-6">
+            {card.desc}
+          </p>
+
+          {/* CTA */}
+          <div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest
+                          text-slate-400 group-hover:text-blinkred
+                          transition-colors cursor-pointer">
+            Learn More <ArrowRight className="w-3 h-3" />
+          </div>
         </div>
-      </section>
+
+        {/* HOVER BLOOM */}
+        <div
+          className="absolute -right-6 -bottom-6 w-24 h-24 bg-gray-50 rounded-full
+                     group-hover:scale-[6]
+                     transition-transform duration-700 z-0"
+        />
+      </motion.div>
+    ))}
+  </div>
+</section>
+
 
       {/* ---------------- SECTION 3: THE FORM PORTAL ---------------- */}
   <section id="portal" className="py-24 px-6 bg-gray-50/50">
@@ -158,81 +262,252 @@ export default function MaidRegistrationForm() {
             whileInView={{ opacity: 1 }}
             className="bg-white rounded-[4rem] p-8 md:p-20 shadow-2xl border border-gray-100"
         >
-            <form onSubmit={handleSubmit} className="space-y-16">
-                {/* Identification */}
-                <div className="grid md:grid-cols-2 gap-12">
-                    {/* Note: Ensure your InputField component uses the "text-black" class for its label */}
-                    <InputField label="Professional Name" name="name" value={formData.name} onChange={handleChange} placeholder="As per Govt ID" error={errors.name} labelClass="text-black" />
-                    <InputField label="WhatsApp Contact" name="number" value={formData.number} onChange={handleChange} placeholder="+91" error={errors.number} labelClass="text-black" />
-                </div>
+          <form
+  onSubmit={handleSubmit}
+  className="max-w-6xl mx-auto px-4 md:px-0 relative grid lg:grid-cols-12 gap-16"
+>
+  {/* --- Left Column: Navigation Progress (Sticky) --- */}
+ {/* --- Left Column: Dynamic Navigation Progress --- */}
+<div className="hidden lg:block lg:col-span-3">
+  <div className="sticky top-24 space-y-10">
+    <div>
+      <h3 className="text-2xl font-black tracking-tighter uppercase leading-tight">
+        Professional <br /> <span className="text-blinkred italic">Onboarding</span>
+      </h3>
+      <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-2">
+        Status: {activeStep === 3 ? "Ready to Submit" : "Phase In-Progress"}
+      </p>
+    </div>
+    
+    <div className="space-y-6 border-l-2 border-gray-100 ml-2">
+      {[
+        { label: "Identity", id: 0 },
+        { label: "Geography", id: 1 },
+        { label: "Expertise", id: 2 },
+        { label: "Specialization", id: 3 }
+      ].map((step) => {
+        const isCompleted = activeStep > step.id;
+        const isActive = activeStep === step.id;
 
-                {/* Geography */}
-                <div className="space-y-8">
-                    <h4 className="text-[11px] font-black uppercase tracking-[0.3em] text-black flex items-center gap-3">
-                        <MapPin size={12} className="text-blinkred" /> Work Location Context
-                    </h4>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
-                        {["house", "street", "area", "landmark", "city", "pincode"].map(field => (
-                            <div key={field} className="relative group space-y-2">
-                                {/* Added dark sub-labels for address fields */}
-                                <label className="text-[9px] font-black text-black/80 uppercase tracking-widest ml-1">{field}</label>
-                                <input 
-                                    name={field} placeholder={field.toUpperCase()} 
-                                    value={formData.address[field]} onChange={handleAddressChange} 
-                                    className="w-full bg-gray-50 border-b-2 border-gray-200 py-4 px-2 outline-none focus:border-blinkred transition-all font-bold text-xs tracking-wider text-black"
-                                />
-                            </div>
-                        ))}
-                    </div>
-                </div>
+        return (
+          <div key={step.id} className="flex items-center gap-4 -ml-[9px] transition-all duration-500">
+            <motion.div 
+              animate={{ 
+                scale: isActive ? 1.2 : 1,
+                backgroundColor: isCompleted || isActive ? "#EE2A35" : "#FFFFFF" 
+              }}
+              className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors ${
+                isCompleted || isActive ? 'border-blinkred' : 'border-gray-200'
+              }`}
+            >
+              {isCompleted && <CheckCircle size={10} className="text-white" />}
+            </motion.div>
+            <span className={`text-[10px] font-black uppercase tracking-widest transition-colors duration-500 ${
+              isActive ? 'text-blinkblack translate-x-1' : isCompleted ? 'text-gray-500' : 'text-gray-300'
+            }`}>
+              {step.label}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  </div>
+</div>
 
-                {/* Expertise */}
-                <div className="grid md:grid-cols-2 gap-12 pt-10 border-t border-gray-100">
-                    <div className="space-y-4">
-                        {/* Changed text-gray-400 to text-black */}
-                        <label className="text-[10px] font-black uppercase tracking-[0.3em] text-black">Experience Tier</label>
-                        <div className="relative">
-                            <select 
-                                name="experience" value={formData.experience} onChange={handleChange}
-                                className="w-full bg-gray-50 border-none rounded-2xl px-6 py-5 focus:ring-2 focus:ring-blinkred font-bold appearance-none text-sm text-black"
-                            >
-                                <option value="">Select Level</option>
-                                {[1,2,3,5,10].map(y => <option key={y} value={y}>{y}+ Years Experience</option>)}
-                            </select>
-                        </div>
-                    </div>
-                    <InputField label="Expected Salary (₹/mo)" name="salary" type="number" value={formData.salary} onChange={handleChange} placeholder="Target earnings" labelClass="text-black" />
-                </div>
+  {/* --- Right Column: Form Sections --- */}
+  <div className="lg:col-span-9 space-y-20">
+    
+    {/* ================= IDENTIFICATION ================= */}
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      className="relative group"
+    >
+      <div className="absolute -left-4 top-0 w-1 h-full bg-blinkred rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
+      <div className="bg-white rounded-[2.5rem] p-8 md:p-12 shadow-[0_20px_50px_rgba(0,0,0,0.04)] border border-gray-50">
+        <div className="flex items-center gap-4 mb-10">
+          <div className="p-3 bg-black text-white rounded-xl shadow-lg">
+            <User size={20} />
+          </div>
+          <h3 className="text-xs font-black uppercase tracking-[0.4em] text-blinkblack">
+            Personal Identity
+          </h3>
+        </div>
 
-                {/* Specialization Selection */}
-                <div className="space-y-8">
-                    {/* Changed text-gray-400 to text-black */}
-                    <label className="text-[10px] font-black uppercase tracking-[0.3em] text-black text-center block">Core Specializations</label>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                        {workOptions.map(work => (
-                            <button
-                                key={work} type="button"
-                                onClick={() => {
-                                    const checked = !formData.workTypes.includes(work);
-                                    handleChange({ target: { name: 'workTypes', value: work, type: 'checkbox', checked } });
-                                }}
-                                className={`py-6 rounded-3xl font-black text-[10px] uppercase tracking-widest transition-all border-2 ${formData.workTypes.includes(work) ? 'bg-blinkred border-blinkred text-white' : 'bg-white border-gray-200 text-black hover:border-blinkred'}`}
-                            >
-                                {work}
-                            </button>
-                        ))}
-                    </div>
-                </div>
+        <div className="grid md:grid-cols-2 gap-10">
+          <InputField
+            label="Full Legal Name"
+            name="name"
+            value={formData.name}
+            onChange={handleChange}
+            placeholder="As per Government ID"
+            error={errors.name}
+            className="premium-input"
+          />
+          <InputField
+            label="WhatsApp Contact"
+            name="number"
+            value={formData.number}
+            onChange={handleChange}
+            placeholder="+91"
+            error={errors.number}
+          />
+        </div>
+      </div>
+    </motion.div>
 
-                <motion.button 
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    type="submit" disabled={loading}
-                    className="w-full bg-black py-8 rounded-[2.5rem] text-white font-black uppercase tracking-[0.5em] text-xs hover:bg-blinkred transition-all shadow-2xl flex items-center justify-center gap-4"
-                >
-                    {loading ? "Processing Profile..." : "Submit to Network"} <ArrowRight size={18} />
-                </motion.button>
-            </form>
+    {/* ================= LOCATION ================= */}
+    <motion.div 
+       initial={{ opacity: 0, y: 20 }}
+       whileInView={{ opacity: 1, y: 0 }}
+       viewport={{ once: true }}
+       className="bg-gray-50/50 rounded-[3rem] p-8 md:p-12 border border-gray-100/50"
+    >
+      <div className="flex items-center gap-4 mb-12">
+        <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center shadow-md border border-gray-100">
+          <MapPin size={18} className="text-blinkred" />
+        </div>
+        <h4 className="text-xs font-black uppercase tracking-[0.35em] text-blinkblack">
+          Primary Residency
+        </h4>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-10">
+        {["house", "street", "area", "landmark", "city", "pincode"].map((field) => (
+          <div key={field} className="relative group">
+            <label className="text-[9px] font-black uppercase tracking-widest text-gray-400 group-focus-within:text-blinkred transition-colors ml-1">
+              {field}
+            </label>
+            <input
+              name={field}
+              value={formData.address[field]}
+              onChange={handleAddressChange}
+              placeholder={field.toUpperCase()}
+              className="w-full bg-transparent border-b-2 border-gray-200 py-3 px-1 text-sm font-bold text-blinkblack
+                         focus:border-blinkred outline-none transition-all placeholder:text-gray-200"
+            />
+          </div>
+        ))}
+      </div>
+    </motion.div>
+
+    {/* ================= EXPERIENCE & SALARY ================= */}
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      className="grid md:grid-cols-2 gap-8"
+    >
+      <div className="bg-white rounded-[2.5rem] p-10 shadow-xl border border-gray-50 flex flex-col justify-between">
+        <label className="text-[10px] font-black uppercase tracking-[0.35em] text-gray-400 mb-6 block">
+          Expertise Level
+        </label>
+        <div className="relative">
+          <Briefcase className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-300" size={18} />
+          <select
+            name="experience"
+            value={formData.experience}
+            onChange={handleChange}
+            className="w-full bg-gray-50 rounded-2xl pl-16 pr-6 py-6 text-sm font-black text-blinkblack
+                       focus:ring-2 focus:ring-blinkred outline-none appearance-none cursor-pointer transition-all"
+          >
+            <option value="">Select Tier</option>
+            {[1, 2, 3, 5, 10].map((y) => (
+              <option key={y} value={y}>{y}+ Years Experience</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-[2.5rem] p-10 shadow-xl border border-gray-50">
+        <InputField
+          label="Expected Salary (₹ / Mo)"
+          name="salary"
+          type="number"
+          value={formData.salary}
+          onChange={handleChange}
+          placeholder="0.00"
+          labelClass="text-gray-400"
+        />
+      </div>
+    </motion.div>
+
+    {/* ================= SKILLS ================= */}
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      className="bg-black text-white rounded-[3rem] p-10 md:p-16 relative overflow-hidden"
+    >
+      <div className="absolute top-0 right-0 w-64 h-64 bg-blinkred/10 blur-[120px] rounded-full" />
+      
+      <div className="relative z-10">
+        <div className="mb-12">
+          <h4 className="text-xl font-black uppercase tracking-widest mb-2">Capabilities</h4>
+          <p className="text-[10px] text-gray-500 font-bold uppercase tracking-[0.3em]">Select your specialized domains</p>
+        </div>
+
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+          {workOptions.map((work) => {
+            const active = formData.workTypes.includes(work);
+            return (
+              <button
+                key={work}
+                type="button"
+                onClick={() =>
+                  handleChange({
+                    target: { name: "workTypes", value: work, type: "checkbox", checked: !active },
+                  })
+                }
+                className={`group relative py-6 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em]
+                            transition-all duration-500 overflow-hidden border
+                            ${active 
+                              ? "bg-blinkred border-blinkred text-white shadow-[0_15px_30px_rgba(238,42,53,0.3)]" 
+                              : "bg-white/5 border-white/10 text-gray-400 hover:border-white/30"
+                            }`}
+              >
+                <span className="relative z-10">{work}</span>
+                {active && (
+                   <motion.div layoutId="skill-bg" className="absolute inset-0 bg-gradient-to-tr from-blinkred to-red-400 -z-0" />
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </motion.div>
+
+    {/* ================= SUBMIT ================= */}
+    <div className="pt-10">
+      <motion.button
+        whileHover={{ scale: 1.02 }}
+        whileTap={{ scale: 0.98 }}
+        type="submit"
+        disabled={loading}
+        className="w-full bg-blinkblack py-9 rounded-full
+                   text-white font-black uppercase tracking-[0.6em] text-[11px]
+                   hover:bg-blinkred transition-all duration-700 shadow-[0_30px_60px_rgba(0,0,0,0.1)]
+                   flex items-center justify-center gap-6
+                   disabled:opacity-50"
+      >
+        {loading ? (
+          <span className="flex items-center gap-3"><Loader2 className="animate-spin" /> Verifying...</span>
+        ) : (
+          <>
+            Finalize Submission
+            <ArrowRight size={20} className="group-hover:translate-x-2 transition-transform" />
+          </>
+        )}
+      </motion.button>
+      <p className="text-center text-[9px] text-gray-400 font-black uppercase tracking-widest mt-8">
+        By submitting, you agree to our <span className="text-blinkblack underline underline-offset-4">Professional Code of Conduct</span>
+      </p>
+    </div>
+  </div>
+</form>
+
+
         </motion.div>
     </div>
 </section>

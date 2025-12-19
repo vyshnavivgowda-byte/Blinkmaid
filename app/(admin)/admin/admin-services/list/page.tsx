@@ -328,7 +328,7 @@ const handleEditSubService = (sub) => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 pb-16">
+    <div className="min-h-screen pb-16">
       {/* --- Top Header --- */}
       <header className="bg-gradient-to-r from-red-700 to-gray-900 text-white px-8 py-10 rounded-b-3xl shadow-lg">
         <h1 className="text-4xl font-extrabold tracking-tight">Services List</h1>

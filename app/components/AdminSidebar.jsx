@@ -11,6 +11,7 @@ import {
   BookOpenCheck,
   LogOut,
   RefreshCw,
+  List,
   Star,
 } from "lucide-react";
 
@@ -30,7 +31,7 @@ export default function AdminSidebar() {
     { href: "/admin/website-reviews", label: "Website Reviews", icon: Star },
     { href: "/admin/enquiries", label: "Enquiries", icon: ClipboardList },
     { href: "/admin/admin-services", label: "City Services", icon: Building2 },
-    { href: "/admin/admin-services/list", label: "List Services", icon: BookOpenCheck },
+    { href: "/admin/admin-services/list", label: "List Services", icon: List},
 
     { href: "/admin/service-bookings", label: "Service Bookings", icon: BookOpenCheck },
     { href: "/admin/user-display", label: "User Details", icon: Users },

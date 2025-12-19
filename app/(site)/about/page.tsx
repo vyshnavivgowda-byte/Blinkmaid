@@ -10,12 +10,17 @@ import {
   ArrowRight,
   Quote
 } from "lucide-react";
-import { motion } from "framer-motion";
-import { useEffect, useState } from "react";
+import { motion, useScroll, useTransform } from "framer-motion";
+import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/lib/supabaseClient";
 
 export default function About() {
   const [reviews, setReviews] = useState([]);
+  const containerRef = useRef(null);
+  const { scrollYProgress } = useScroll({
+    target: containerRef,
+    offset: ["start start", "end end"]
+  });
 
   useEffect(() => {
     const fetchReviews = async () => {
@@ -34,203 +39,247 @@ export default function About() {
       icon: Handshake,
       title: "Trusted Service",
       desc: "Carefully vetted professionals delivering spotless, reliable home services.",
+      tag: "Vetted"
     },
     {
       icon: CheckCircle,
       title: "Unyielding Quality",
       desc: "High standards of cleanliness, consistency, and professionalism.",
+      tag: "Standard"
     },
     {
       icon: Shield,
       title: "Verified & Secure",
       desc: "Background-checked staff ensuring safety and peace of mind.",
+      tag: "Security"
     },
   ];
 
   return (
-    <div className="bg-white text-blinkblack min-h-screen selection:bg-blinkred selection:text-white">
+    <div ref={containerRef} className="bg-[#FCFCFC] text-blinkblack min-h-screen selection:bg-blinkred selection:text-white">
       
-      {/* ---------------- CINEMATIC HEADER WITH BACKGROUND IMAGE ---------------- */}
-      <section className="relative w-full h-[85vh] flex items-end overflow-hidden">
-        {/* Background Image Container */}
-        <div 
-            className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat scale-105"
-            style={{ 
-              // Changed to a Warm Home Care / Professional Domestic background
-              backgroundImage: "url('https://images.unsplash.com/photo-1581578731548-c64695cc6954?q=80&w=2070&auto=format&fit=crop')",
-              filter: "brightness(0.9)"
-            }}
+      {/* ---------------- PREMIUM HERO SECTION ---------------- */}
+
+<section className="relative w-full h-[85vh] flex items-end overflow-hidden">
+  {/* 🔹 BACKGROUND IMAGE WITH HOVER EFFECT */}
+  <div
+    className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat transition-transform duration-1000 hover:scale-105"
+    style={{
+      backgroundImage: "url('https://t3.ftcdn.net/jpg/14/86/25/86/240_F_1486258647_sIR9w4l4NrqyGFpQShL8Dcvzd7oWIgEk.jpg')"
+    }}
+  >
+    {/* Refined gradient for better text legibility */}
+    <div className="absolute inset-0 bg-gradient-to-t from-white via-white/40 to-black/20" />
+  </div>
+
+  {/* 🔹 CONTENT */}
+  <div className="relative z-10 max-w-7xl mx-auto w-full px-6 pb-20 md:pb-5">
+    <div className="flex flex-col items-start max-w-5xl">
+      
+      {/* HEADER SECTION */}
+      <motion.div
+        initial={{ opacity: 0, y: 50 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 1, ease: "easeOut" }}
+        className="relative"
+      >
+        <div className="flex items-center gap-3 mb-8">
+          <div className="w-12 h-[2px] bg-blinkred"></div>
+          <span className="text-[10px] md:text-xs font-black uppercase tracking-[0.5em] text-blinkred drop-shadow-sm">
+            Since 2024 • Elite Standards
+          </span>
+        </div>
+
+        <h1 className="text-7xl md:text-[10rem] lg:text-[12rem] font-black tracking-tighter leading-[0.75] mb-12 drop-shadow-2xl">
+          PURE <br />
+          <span className="text-blinkblack">LEGACY.</span>
+        </h1>
+
+        {/* 🔹 BUTTON NOW PLACED DIRECTLY BELOW TEXT */}
+        <motion.div 
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.8, duration: 0.8 }}
+          className="flex flex-col md:flex-row items-start md:items-center gap-8"
         >
-            {/* Multi-stage Overlay for depth */}
-            <div className="absolute inset-0 bg-black/10" />
-            <div className="absolute inset-0 bg-gradient-to-t from-white via-white/20 to-transparent" />
-        </div>
+          <button className="group relative bg-blinkblack text-white px-12 py-6 rounded-full font-black text-[10px] uppercase tracking-[0.4em] overflow-hidden transition-all duration-500 hover:bg-blinkred hover:pr-16 shadow-2xl active:scale-95">
+            <span className="relative z-10">Discover More</span>
+            <ArrowRight className="absolute right-6 opacity-0 group-hover:opacity-100 transition-all duration-300 w-4 h-4" />
+          </button>
 
-        <div className="relative z-10 max-w-7xl mx-auto w-full px-6 pb-24">
-          <motion.div
-            initial={{ opacity: 0, y: 60 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
-          >
-            <div className="flex items-center gap-4 mb-8">
-              <span className="h-[2px] w-16 bg-blinkred"></span>
-              <span className="text-xs font-black uppercase tracking-[0.6em] text-blinkred">EST. 2024</span>
-            </div>
-            
-            <h1 className="text-7xl md:text-[11rem] font-black tracking-tighter leading-[0.75] mb-10 drop-shadow-sm">
-              PURE <br /> 
-              <span className="text-transparent bg-clip-text bg-gradient-to-b from-blinkblack to-gray-500">LEGACY.</span>
-            </h1>
+          <div className="flex flex-col">
+             <p className="text-[10px] font-black uppercase tracking-[0.25em] text-gray-400 mb-1">
+               Specialized Divisions
+             </p>
+             <p className="text-[10px] font-bold uppercase tracking-widest text-blinkblack/60">
+               Baby Sitting • Patient Care • Verified Staff
+             </p>
+          </div>
+        </motion.div>
+      </motion.div>
 
-            <div className="grid md:grid-cols-2 gap-12 items-start">
-              <p className="text-xl md:text-2xl text-blinkblack font-bold leading-tight max-w-lg">
-                We don't just provide help. We restore the harmony and safety of your personal sanctuary.
-              </p>
-              <div className="hidden md:block">
-                <div className="h-px w-full bg-gray-200 mb-6"></div>
-                <p className="text-sm font-black uppercase tracking-widest text-gray-400">Baby Sitting • Patient Care • Verified Staff</p>
-              </div>
-            </div>
-          </motion.div>
-        </div>
-      </section>
+    </div>
+  </div>
+</section>
 
-      {/* ---------------- THE BENTO COMMITMENTS ---------------- */}
-      <section className="py-32 px-6 max-w-7xl mx-auto">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+
+      {/* ---------------- BENTO GRID COMMITMENTS ---------------- */}
+      <section className="py-32 px-6 max-w-7xl mx-auto mt-2">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {commitments.map((item, i) => (
             <motion.div
               key={i}
-              initial={{ opacity: 0, scale: 0.95 }}
-              whileInView={{ opacity: 1, scale: 1 }}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ delay: i * 0.1 }}
-              className="group p-12 rounded-[3.5rem] bg-gray-50 border border-gray-100 hover:bg-blinkred transition-all duration-700 cursor-default"
+              transition={{ delay: i * 0.2 }}
+              className="group relative p-10 rounded-[2.5rem] bg-white border border-gray-100 hover:border-blinkred/20 transition-all duration-500 overflow-hidden shadow-sm hover:shadow-xl"
             >
-              <div className="w-16 h-16 bg-white rounded-[1.5rem] flex items-center justify-center mb-8 shadow-sm group-hover:rotate-6 transition-transform">
-                <item.icon className="w-8 h-8 text-blinkred transition-colors" />
+              <div className="relative z-10">
+                <span className="text-[10px] font-semibold text-red-700 uppercase tracking-[0.3em] mb-6 block opacity-50">{item.tag}</span>
+                <div className="w-14 h-14 bg-gray-50 rounded-2xl flex items-center justify-center mb-6 group-hover:bg-blinkred transition-colors duration-500">
+                  <item.icon className="w-6 h-6 text-blinkblack group-hover:text-white transition-colors duration-500" />
+                </div>
+                <h3 className="text-xl font-bold uppercase tracking-tight mb-3">{item.title}</h3>
+                <p className="text-gray-500 text-sm leading-relaxed mb-6">
+                  {item.desc}
+                </p>
+                <div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest group-hover:text-blinkred transition-colors cursor-pointer">
+                    Learn More <ArrowRight className="w-3 h-3" />
+                </div>
               </div>
-              <h3 className="text-2xl font-black uppercase tracking-tighter mb-4 group-hover:text-white transition-colors">{item.title}</h3>
-              <p className="text-gray-500 group-hover:text-white/80 transition-colors font-medium leading-relaxed">
-                {item.desc}
-              </p>
+              <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-gray-50 rounded-full group-hover:scale-[6] transition-transform duration-700 z-0" />
             </motion.div>
           ))}
         </div>
       </section>
 
-      {/* ---------------- MISSION & VISION (DARK MODE BREAK) ---------------- */}
+      {/* ---------------- MISSION & VISION (ASYMMETRIC) ---------------- */}
       <section className="py-32 bg-blinkblack text-white relative overflow-hidden">
-        <div className="absolute -right-20 -bottom-20 w-96 h-96 bg-blinkred/20 blur-[150px] rounded-full" />
+        <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+           <div className="absolute top-10 left-10 w-96 h-96 bg-blinkred blur-[120px] rounded-full" />
+        </div>
         
-        <div className="max-w-7xl mx-auto px-6 grid lg:grid-cols-2 gap-24 items-center">
-          <motion.div
-            initial={{ opacity: 0, x: -30 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-          >
-            <h2 className="text-6xl md:text-8xl font-black tracking-tighter uppercase mb-16 leading-none">
-              OUR CARE <span className="text-blinkred italic text-5xl md:text-7xl">SPECTRUM.</span>
-            </h2>
-            <div className="space-y-16">
-              <div className="flex gap-10">
-                <div className="w-16 h-16 rounded-full border border-white/20 flex items-center justify-center shrink-0">
-                    <Target className="w-6 h-6 text-blinkred" />
-                </div>
-                <div>
-                  <h4 className="text-xl font-black uppercase tracking-widest mb-4">Our Mission</h4>
-                  <p className="text-gray-400 text-lg font-medium leading-relaxed max-w-md">
-                    To provide families with peace of mind by connecting them with thoroughly vetted and compassionate domestic professionals.
-                  </p>
-                </div>
+        <div className="max-w-7xl mx-auto px-6 grid lg:grid-cols-12 gap-16 items-center">
+          <div className="lg:col-span-7">
+            <motion.h2 
+              initial={{ opacity: 0 }}
+              whileInView={{ opacity: 1 }}
+              className="text-5xl md:text-8xl font-black tracking-tighter uppercase mb-16 leading-none"
+            >
+              OUR CARE <br/>
+              <span className="text-blinkred italic font-serif lowercase">spectrum.</span>
+            </motion.h2>
+            
+            <div className="grid sm:grid-cols-2 gap-12">
+              <div className="space-y-6">
+                <Target className="w-10 h-10 text-blinkred" />
+                <h4 className="text-lg font-bold uppercase tracking-widest">Our Mission</h4>
+                <p className="text-gray-400 text-base leading-relaxed">
+                  To provide families with peace of mind by connecting them with thoroughly vetted and compassionate domestic professionals.
+                </p>
               </div>
-              <div className="flex gap-10">
-                <div className="w-16 h-16 rounded-full border border-white/20 flex items-center justify-center shrink-0">
-                    <Eye className="w-6 h-6 text-blinkred" />
-                </div>
-                <div>
-                  <h4 className="text-xl font-black uppercase tracking-widest mb-4">Our Vision</h4>
-                  <p className="text-gray-400 text-lg font-medium leading-relaxed max-w-md">
-                    To become the undisputed gold standard for trusted home staff management and compassionate patient care.
-                  </p>
-                </div>
+              <div className="space-y-6">
+                <Eye className="w-10 h-10 text-blinkred" />
+                <h4 className="text-lg font-bold uppercase tracking-widest">Our Vision</h4>
+                <p className="text-gray-400 text-base leading-relaxed">
+                  To become the undisputed gold standard for trusted home staff management and compassionate patient care.
+                </p>
               </div>
             </div>
-          </motion.div>
+          </div>
 
           <motion.div 
-            initial={{ opacity: 0, x: 50 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-            className="relative"
+            className="lg:col-span-5 relative"
+            initial={{ opacity: 0, scale: 0.9 }}
+            whileInView={{ opacity: 1, scale: 1 }}
           >
-            <div className="aspect-[4/5] rounded-[4rem] overflow-hidden">
+            <div className="aspect-[3/4] rounded-3xl overflow-hidden border-[12px] border-white/5">
               <img 
-                // Changed to a Patient Care / Nursing image to suit your services
                 src="https://images.unsplash.com/photo-1576765608535-5f04d1e3f289?q=80&w=2031&auto=format&fit=crop" 
                 alt="Professional Care"
-                className="w-full h-full object-cover grayscale brightness-75 hover:grayscale-0 hover:brightness-100 transition-all duration-1000"
+                className="w-full h-full object-cover grayscale hover:grayscale-0 transition-all duration-1000"
               />
             </div>
-            <div className="absolute -bottom-10 -right-10 bg-blinkred p-12 rounded-[3rem] shadow-2xl">
-               <Shield className="w-12 h-12 text-white mb-4" />
-               <p className="text-xs font-black uppercase tracking-widest text-white/80">Safety Rating</p>
-               <p className="text-4xl font-black text-white">A+</p>
+            <div className="absolute -bottom-6 -left-6 bg-white p-8 rounded-2xl shadow-2xl">
+               <div className="flex items-center gap-4">
+                  <div className="p-3 bg-blinkred rounded-lg">
+                    <Shield className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 leading-none">Safety Rating</p>
+                    <p className="text-3xl font-black text-blinkblack">A+ Verified</p>
+                  </div>
+               </div>
             </div>
           </motion.div>
         </div>
       </section>
 
-      {/* ---------------- TESTIMONIALS ---------------- */}
+      {/* ---------------- TESTIMONIALS (EDITORIAL STYLE) ---------------- */}
       <section className="py-32 px-6 max-w-7xl mx-auto">
-        <div className="mb-24 text-center">
-            <h2 className="text-5xl md:text-8xl font-black tracking-tighter uppercase mb-6">VOICES OF <span className="text-blinkred">TRUST.</span></h2>
-            <div className="w-24 h-2 bg-blinkblack mx-auto"></div>
+        <div className="flex flex-col md:flex-row justify-between items-end mb-20 gap-6">
+            <h2 className="text-5xl md:text-7xl font-black tracking-tighter uppercase">
+                VOICES OF <br/> <span className="text-blinkred">TRUST.</span>
+            </h2>
+            <p className="text-gray-400 max-w-xs font-medium text-sm border-l-2 border-gray-100 pl-6 uppercase tracking-widest">
+                What our clients say about our dedicated professionals
+            </p>
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-10">
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
           {reviews.map((r, i) => (
             <motion.div
               key={r.id}
               initial={{ opacity: 0, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: i * 0.1 }}
-              className="group p-12 rounded-[3rem] bg-gray-50 border border-gray-100 flex flex-col justify-between hover:shadow-2xl transition-all"
+              className="p-10 rounded-3xl bg-white border border-gray-100 flex flex-col justify-between hover:shadow-[0_20px_50px_rgba(0,0,0,0.05)] transition-all group"
             >
-              <Quote className="w-12 h-12 text-gray-200 mb-8 group-hover:text-blinkred transition-colors" />
               <div>
-                <p className="text-blinkblack font-bold text-xl leading-relaxed mb-10 italic">
+                <Quote className="w-8 h-8 text-blinkred/20 mb-6 group-hover:text-blinkred transition-colors" />
+                <p className="text-blinkblack font-medium text-lg leading-relaxed mb-8">
                   “{r.review}”
                 </p>
               </div>
-              <div className="flex items-center gap-4 border-t border-gray-200 pt-8">
-                <div className="w-10 h-10 bg-blinkred rounded-full flex items-center justify-center text-white font-black">
-                    {r.name.charAt(0)}
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-blinkblack text-white rounded-full flex items-center justify-center font-bold text-sm">
+                  {r.name.charAt(0)}
                 </div>
-                <p className="font-black uppercase tracking-widest text-xs">
-                  {r.name}
-                </p>
+                <div>
+                  <p className="font-bold uppercase tracking-tighter text-sm">{r.name}</p>
+                  <div className="flex gap-1">
+                    {[...Array(5)].map((_, i) => <Star key={i} className="w-3 h-3 fill-blinkred text-blinkred" />)}
+                  </div>
+                </div>
               </div>
             </motion.div>
           ))}
         </div>
       </section>
 
-      {/* ---------------- FINAL CTA ---------------- */}
+      {/* ---------------- HIGH-IMPACT FINAL CTA ---------------- */}
       <section className="pb-32 px-6">
-        <div className="max-w-7xl mx-auto bg-blinkred rounded-[4rem] p-20 md:p-32 text-center text-white relative overflow-hidden group">
-          <div className="absolute inset-0 bg-black opacity-0 group-hover:opacity-10 transition-opacity" />
-          <h2 className="text-5xl md:text-8xl font-black tracking-tighter uppercase mb-12">
-            JOIN THE <br/> REVOLUTION.
-          </h2>
-          <motion.button 
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            className="bg-white text-blinkblack px-16 py-6 rounded-2xl font-black uppercase tracking-[0.3em] flex items-center gap-4 mx-auto hover:bg-blinkblack hover:text-white transition-all shadow-xl"
+        <div className="max-w-7xl mx-auto bg-blinkblack rounded-[3rem] p-12 md:p-24 text-center text-white relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-blinkred/20 to-transparent pointer-events-none" />
+          
+          <motion.div 
+             initial={{ opacity: 0, scale: 0.9 }}
+             whileInView={{ opacity: 1, scale: 1 }}
+             className="relative z-10"
           >
-            Book Now <ArrowRight />
-          </motion.button>
+            <h2 className="text-4xl md:text-7xl font-black tracking-tighter uppercase mb-8">
+              READY TO RESTORE <br/> <span className="text-blinkred">YOUR HARMONY?</span>
+            </h2>
+            <p className="text-gray-400 mb-12 max-w-lg mx-auto font-medium">
+                Experience the standard of care your home deserves. Vetted, professional, and compassionate.
+            </p>
+            <motion.button 
+              whileHover={{ scale: 1.05, backgroundColor: "#E63946" }} // Assuming blinkred hex
+              className="bg-white text-blinkblack px-12 py-5 rounded-full font-black uppercase tracking-[0.2em] flex items-center gap-3 mx-auto transition-all shadow-2xl text-sm"
+            >
+              Book Your Service <ArrowRight className="w-4 h-4" />
+            </motion.button>
+          </motion.div>
         </div>
       </section>
     </div>
