@@ -3,14 +3,17 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import {
-  ClipboardList,
-  Trash2,
+  Trash2, Users,
   Search,
   User,
   RefreshCcw,
   Eye,
   FileSpreadsheet,
   FileDown,
+  FileText,      // Add this
+  ClipboardList, // Add this
+  AlertCircle,   // Add this
+  X              // Add this
 } from "lucide-react";
 import { useToast } from "@/app/components/toast/ToastContext";
 import * as XLSX from "xlsx";
@@ -326,29 +329,78 @@ export default function MaidChangeDashboard() {
 
       </main>
 
-      {/* View Modal */}
+      {/* --- CHANGE DETAILS VIEW MODAL (Horizontal Design) --- */}
       {showModal && selectedRequest && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center">
-          <div className="bg-white p-6 rounded-xl w-full max-w-lg">
-            <h2 className="text-xl font-bold mb-3">Change Details</h2>
-            <p><b>Booking:</b> {selectedRequest.booking_id}</p>
-            <p><b>Maid Name:</b> {selectedRequest.previous_maid_id}</p>
-            <p className="mt-3">
-              <b>Reason:</b>
-              <span className="block bg-gray-100 p-3 mt-1 rounded">{selectedRequest.change_reason || "—"}</span>
-            </p>
-            <div className="text-right mt-4">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in duration-200 border border-gray-200">
+
+            {/* Modal Header */}
+            <div className="bg-gray-50 border-b border-gray-200 p-4 flex justify-between items-center">
+              <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                <FileText size={20} className="text-gray-500" /> Change Request Details
+              </h3>
               <button
                 onClick={() => setShowModal(false)}
-                className="bg-red-600 text-white px-4 py-2 rounded"
+                className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-1 rounded-full transition"
               >
-                Close
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="flex flex-col md:flex-row">
+              {/* Left Side: Summary Info (Gray Sidebar) */}
+              <div className="w-full md:w-1/3 bg-gray-50 p-6 flex flex-col items-center justify-start border-b md:border-b-0 md:border-r border-gray-200">
+                <div className="w-24 h-24 bg-white rounded-2xl border border-gray-300 flex items-center justify-center shadow-sm mb-4">
+                  <ClipboardList size={40} className="text-gray-300" />
+                </div>
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center">Booking Reference</p>
+                <p className="text-gray-700 font-bold text-center break-all">{selectedRequest.booking_id}</p>
+
+                {/* Status section removed from here */}
+              </div>
+
+              {/* Right Side: Detailed Reason */}
+              <div className="w-full md:w-2/3 p-6 space-y-6">
+                <div>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase">Assigned Maid</label>
+                  <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                    <Users size={18} className="text-gray-400" /> {selectedRequest.previous_maid_id}
+                  </h2>
+                </div>
+
+                <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase flex items-center gap-2 mb-2">
+                    <AlertCircle size={14} className="text-gray-500" /> Reason for Change
+                  </label>
+                  <p className="text-gray-700 text-sm leading-relaxed italic">
+                    "{selectedRequest.change_reason || "No specific reason provided for this request."}"
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4">
+                  <div>
+                    <label className="text-[10px] font-bold text-gray-400 uppercase">Submission Date</label>
+                    <p className="text-gray-800 text-sm font-medium mt-0.5">
+                      {new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer / Close Button */}
+            <div className="bg-gray-50 p-4 border-t border-gray-200 flex justify-end">
+              <button
+                onClick={() => setShowModal(false)}
+                className="px-6 py-2 bg-gray-800 text-white text-sm rounded-lg font-bold hover:bg-black transition-all active:scale-95"
+              >
+                Close Detail
               </button>
             </div>
           </div>
         </div>
       )}
-
+      
       {/* Delete Modal */}
       {showDeleteModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center">

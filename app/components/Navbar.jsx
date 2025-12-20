@@ -143,21 +143,56 @@ export default function Navbar() {
   const handleRegister = async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
+
     setLoading(true);
-    const { error } = await supabase.auth.signUp({
+
+    // 🔍 Check email via API
+    const res = await fetch("/api/check-user", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: formData.email }),
+    });
+
+    const result = await res.json();
+
+    if (result.exists) {
+      setFormErrors((prev) => ({
+        ...prev,
+        email: "Email already exists. Please log in instead.",
+      }));
+      setLoading(false);
+      return;
+    }
+
+    // ✅ Proceed with signup
+    const { data, error } = await supabase.auth.signUp({
       email: formData.email,
       password: formData.password,
-      options: { data: { name: formData.name, phone: formData.phone } }
+      options: {
+        data: {
+          name: formData.name,
+          phone: formData.phone,
+        },
+      },
     });
-    if (error) { showToast(error.message, "error"); setLoading(false); }
-    else {
-      await supabase.auth.signInWithPassword({ email: formData.email, password: formData.password });
-      showToast("Account Created!", "success");
-      setModalOpen(false);
+
+    if (error) {
+      showToast(error.message, "error");
       setLoading(false);
-      resetForm();
+      return;
     }
+
+    showToast("Account created! Please verify your email.", "success");
+    setModalOpen(false);
+    setLoading(false);
+    resetForm();
   };
+
+
+
+
+
+
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -167,35 +202,35 @@ export default function Navbar() {
   };
 
   const handlePayment = (plan) => {
-  const amountInPaise = Math.round(Number(plan.price.replace(/,/g, '')) * 100);
+    const amountInPaise = Math.round(Number(plan.price.replace(/,/g, '')) * 100);
 
-  const options = {
-    key: "rzp_test_RpvE2nM5XUTYN7",
-    amount: amountInPaise, // now correct
-    currency: "INR",
-    name: "Blinkmaid",
-    handler: async function (response) {
-      const { error } = await supabase.from("subscribers").insert([{
-        name: user.user_metadata?.name,
-        email: user.email,
-        phone: user.user_metadata?.phone,
-        plan_duration: plan.duration,
-        plan_price: plan.price,
-        plan_benefits: JSON.stringify(plan.features),
-        user_id: user.id,
-        subscribed_at: new Date(),
-      }]);
-      if (!error) {
-        showToast("Subscription Activated!", "success");
-        fetchSubscribers(user.id);
-        setShowSubscribePopup(false);
-      }
-    },
-    prefill: { email: user.email },
-    theme: { color: "#E63946" },
+    const options = {
+      key: "rzp_test_RpvE2nM5XUTYN7",
+      amount: amountInPaise, // now correct
+      currency: "INR",
+      name: "Blinkmaid",
+      handler: async function (response) {
+        const { error } = await supabase.from("subscribers").insert([{
+          name: user.user_metadata?.name,
+          email: user.email,
+          phone: user.user_metadata?.phone,
+          plan_duration: plan.duration,
+          plan_price: plan.price,
+          plan_benefits: JSON.stringify(plan.features),
+          user_id: user.id,
+          subscribed_at: new Date(),
+        }]);
+        if (!error) {
+          showToast("Subscription Activated!", "success");
+          fetchSubscribers(user.id);
+          setShowSubscribePopup(false);
+        }
+      },
+      prefill: { email: user.email },
+      theme: { color: "#E63946" },
+    };
+    new window.Razorpay(options).open();
   };
-  new window.Razorpay(options).open();
-};
 
   return (
     <>
@@ -293,10 +328,10 @@ export default function Navbar() {
       {user && (
         <div className="fixed top-24 left-0 w-full z-40">
           <div className={`${subscribers.length > 0 && !isExpired(subscribers[0])
-              ? 'bg-blinkblack'
-              : subscribers.length > 0 && isExpired(subscribers[0])
-                ? 'bg-red-600'
-                : 'bg-blinkred'
+            ? 'bg-blinkblack'
+            : subscribers.length > 0 && isExpired(subscribers[0])
+              ? 'bg-red-600'
+              : 'bg-blinkred'
             } text-white py-2 overflow-hidden shadow-lg`}>
             <div className="flex items-center justify-center gap-4 text-[10px] font-black uppercase tracking-[0.3em]">
               {loadingSubscribers ? (
@@ -352,6 +387,12 @@ export default function Navbar() {
                   </div>
                 )}
                 <input type="email" name="email" placeholder="EMAIL ADDRESS" onChange={(e) => setFormData({ ...formData, email: e.target.value })} className="w-full bg-gray-50 border-none rounded-2xl px-6 py-4 focus:ring-2 focus:ring-blinkred font-bold text-xs uppercase" required />
+                {formErrors.email && (
+                  <p className="text-red-500 text-[10px] font-black uppercase tracking-widest mt-1">
+                    {formErrors.email}
+                  </p>
+                )}
+
                 <div className="relative">
                   <input type={showPassword ? "text" : "password"} name="password" placeholder="PASSWORD" onChange={(e) => setFormData({ ...formData, password: e.target.value })} className="w-full bg-gray-50 border-none rounded-2xl px-6 py-4 focus:ring-2 focus:ring-blinkred font-bold text-xs uppercase" required />
                   <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-4 text-gray-400">{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button>
@@ -436,7 +477,7 @@ export default function Navbar() {
                         <p className="text-blinkred font-black text-[10px] uppercase tracking-widest mt-2">{plan.tagline}</p>
                         <div className="my-10">
                           <span className={`text-6xl font-black tracking-tighter ${plan.popular ? 'text-black' : 'text-gray-800'}`}>
-₹{plan.price.toLocaleString("en-IN")}
+                            ₹{plan.price.toLocaleString("en-IN")}
                           </span>
                         </div>
                         <ul className="space-y-4 mb-10">

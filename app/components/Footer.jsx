@@ -10,16 +10,16 @@ export default function Footer() {
 
   return (
     <footer className="relative bg-blinkblack pt-24 pb-12 overflow-hidden border-t border-white/5">
-      
+
       {/* --- BRANDED BACKGROUND GLOWS --- */}
       <div className="absolute top-0 left-1/4 w-96 h-96 bg-blinkred/10 rounded-full blur-[120px] -z-10" />
       <div className="absolute bottom-0 right-1/4 w-64 h-64 bg-blinkred/5 rounded-full blur-[100px] -z-10" />
 
       <div className="max-w-7xl mx-auto px-6">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-16 mb-20">
-          
+
           {/* --- BRAND IDENTITY --- */}
-          <motion.div 
+          <motion.div
             className="lg:col-span-4 space-y-8"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -31,9 +31,9 @@ export default function Footer() {
               </h2>
               <div className="w-12 h-1 bg-blinkred"></div>
             </div>
-            
+
             <p className="text-lg text-gray-400 leading-relaxed font-medium">
-              Redefining the gold standard of professional cleaning. We don't just clean spaces; 
+              Redefining the gold standard of professional cleaning. We don't just clean spaces;
               we curate environments for peak living.
             </p>
 
@@ -57,7 +57,7 @@ export default function Footer() {
           </motion.div>
 
           {/* --- NAVIGATION --- */}
-          <motion.div 
+          <motion.div
             className="lg:col-span-2 space-y-8"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -78,7 +78,7 @@ export default function Footer() {
           </motion.div>
 
           {/* --- LEGAL --- */}
-          <motion.div 
+          <motion.div
             className="lg:col-span-2 space-y-8"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -99,7 +99,7 @@ export default function Footer() {
           </motion.div>
 
           {/* --- NEWSLETTER & CONTACT --- */}
-          <motion.div 
+          <motion.div
             className="lg:col-span-4 space-y-8"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -110,32 +110,22 @@ export default function Footer() {
             <p className="text-gray-400 font-medium leading-relaxed">
               Join 500+ premium homeowners receiving our luxury maintenance tips and exclusive offers.
             </p>
-            
-            <div className="relative group">
-              <input 
-                type="email" 
-                placeholder="Email Address" 
-                className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-blinkwhite outline-none focus:ring-1 focus:ring-blinkred transition-all duration-300 placeholder:text-gray-600"
-              />
-              <button className="absolute right-2 top-2 bottom-2 px-6 bg-blinkred hover:bg-[#d62d39] text-blinkwhite font-bold rounded-xl transition-all duration-300">
-                Join
-              </button>
-            </div>
+
 
             <div className="pt-4 space-y-4">
-               <div className="flex items-center gap-4 text-gray-400 group cursor-pointer">
-                  <div className="w-10 h-10 rounded-lg bg-blinkred/10 flex items-center justify-center text-blinkred group-hover:bg-blinkred group-hover:text-blinkwhite transition-all">
-                    <HiOutlinePhone size={20} />
-                  </div>
-                  <span className="font-bold group-hover:text-blinkwhite transition-colors tracking-tight">+91 93804 19755</span>
-               </div>
-               
-               <div className="flex items-center gap-4 text-gray-400 group cursor-pointer">
-                  <div className="w-10 h-10 rounded-lg bg-blinkred/10 flex items-center justify-center text-blinkred group-hover:bg-blinkred group-hover:text-blinkwhite transition-all">
-                    <HiOutlineMail size={20} />
-                  </div>
-                  <span className="font-bold group-hover:text-blinkwhite transition-colors tracking-tight">support@blinkmaid.com</span>
-               </div>
+              <div className="flex items-center gap-4 text-gray-400 group cursor-pointer">
+                <div className="w-10 h-10 rounded-lg bg-blinkred/10 flex items-center justify-center text-blinkred group-hover:bg-blinkred group-hover:text-blinkwhite transition-all">
+                  <HiOutlinePhone size={20} />
+                </div>
+                <span className="font-bold group-hover:text-blinkwhite transition-colors tracking-tight">+91 93804 19755</span>
+              </div>
+
+              <div className="flex items-center gap-4 text-gray-400 group cursor-pointer">
+                <div className="w-10 h-10 rounded-lg bg-blinkred/10 flex items-center justify-center text-blinkred group-hover:bg-blinkred group-hover:text-blinkwhite transition-all">
+                  <HiOutlineMail size={20} />
+                </div>
+                <span className="font-bold group-hover:text-blinkwhite transition-colors tracking-tight">support@blinkmaid.com</span>
+              </div>
             </div>
           </motion.div>
         </div>

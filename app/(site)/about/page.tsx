@@ -7,9 +7,10 @@ import {
   CheckCircle,
   Shield,
   Star,
-  ArrowRight,
   Quote
 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ArrowRight } from "lucide-react";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/lib/supabaseClient";
@@ -17,6 +18,7 @@ import { supabase } from "@/lib/supabaseClient";
 export default function About() {
   const [reviews, setReviews] = useState([]);
   const containerRef = useRef(null);
+  const router = useRouter();
   const { scrollYProgress } = useScroll({
     target: containerRef,
     offset: ["start start", "end end"]
@@ -102,10 +104,7 @@ export default function About() {
           transition={{ delay: 0.8, duration: 0.8 }}
           className="flex flex-col md:flex-row items-start md:items-center gap-8"
         >
-          <button className="group relative bg-blinkblack text-white px-12 py-6 rounded-full font-black text-[10px] uppercase tracking-[0.4em] overflow-hidden transition-all duration-500 hover:bg-blinkred hover:pr-16 shadow-2xl active:scale-95">
-            <span className="relative z-10">Discover More</span>
-            <ArrowRight className="absolute right-6 opacity-0 group-hover:opacity-100 transition-all duration-300 w-4 h-4" />
-          </button>
+
 
           <div className="flex flex-col">
              <p className="text-[10px] font-black uppercase tracking-[0.25em] text-gray-400 mb-1">
@@ -273,12 +272,15 @@ export default function About() {
             <p className="text-gray-400 mb-12 max-w-lg mx-auto font-medium">
                 Experience the standard of care your home deserves. Vetted, professional, and compassionate.
             </p>
-            <motion.button 
-              whileHover={{ scale: 1.05, backgroundColor: "#E63946" }} // Assuming blinkred hex
-              className="bg-white text-blinkblack px-12 py-5 rounded-full font-black uppercase tracking-[0.2em] flex items-center gap-3 mx-auto transition-all shadow-2xl text-sm"
-            >
-              Book Your Service <ArrowRight className="w-4 h-4" />
-            </motion.button>
+        <motion.button
+  whileHover={{ scale: 1.05, backgroundColor: "#E63946" }}
+  onClick={() => router.push(`/services`)}
+  className="bg-white text-blinkblack px-12 py-5 rounded-full font-black uppercase tracking-[0.2em] flex items-center gap-3 mx-auto transition-all shadow-2xl text-sm"
+>
+  Book Your Service
+  <ArrowRight className="w-4 h-4" />
+</motion.button>
+
           </motion.div>
         </div>
       </section>

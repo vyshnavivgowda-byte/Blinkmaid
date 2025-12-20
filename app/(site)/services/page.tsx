@@ -20,15 +20,15 @@ export default function ServicesPage() {
 
   return (
     <div className="min-h-screen bg-[#FDFDFD] text-[#111] font-sans">
-      
+
       {/* --- SECTION 1: HERO --- */}
       <section className="relative h-[70vh] flex items-center px-6 overflow-hidden bg-black">
         {/* Background Image - Removed Grayscale */}
         <div className="absolute inset-0 z-0">
-          <img 
-            src="https://5.imimg.com/data5/SELLER/Default/2021/3/FZ/GL/YD/8248982/placement-services-for-babysitter-500x500.jpg" 
-            className="w-full h-full object-cover opacity-60" 
-            alt="Luxury Interior" 
+          <img
+            src="https://5.imimg.com/data5/SELLER/Default/2021/3/FZ/GL/YD/8248982/placement-services-for-babysitter-500x500.jpg"
+            className="w-full h-full object-cover opacity-60"
+            alt="Luxury Interior"
           />
           {/* Subtle Gradient Overlay for text readability */}
           <div className="absolute inset-0 bg-gradient-to-r from-black via-black/40 to-transparent" />
@@ -60,20 +60,22 @@ export default function ServicesPage() {
               >
                 {/* Image Container - Removed Grayscale */}
                 <div className="relative aspect-[4/5] rounded-[2.5rem] overflow-hidden mb-6 shadow-sm group-hover:shadow-2xl group-hover:shadow-rose-100 transition-all duration-500 bg-slate-100">
-                  <img 
-                    src={service.image_url || `https://images.unsplash.com/photo-1581578731548-c64695cc6954?q=80&w=1000&auto=format&fit=crop`} 
+                  <img
+                    src={service.image_url || `https://images.unsplash.com/photo-1581578731548-c64695cc6954?q=80&w=1000&auto=format&fit=crop`}
                     alt={service.name}
                     className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                   />
-                  
+
                   {/* Floating Price Tag */}
                   <div className="absolute top-6 right-6 px-4 py-2 bg-white/90 backdrop-blur-md rounded-full shadow-xl">
-                    <span className="text-sm font-black tracking-tighter text-black">₹{service.price}</span>
+                    <span className="text-xs font-black uppercase tracking-wider text-black">
+                      View Plans
+                    </span>
                   </div>
 
                   {/* Gradient Overlay */}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                  
+
                   {/* Hover Arrow */}
                   <div className="absolute bottom-8 right-8 w-12 h-12 bg-rose-600 text-white rounded-full flex items-center justify-center translate-y-12 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-500 shadow-xl">
                     <ArrowUpRight size={24} />
@@ -101,15 +103,15 @@ export default function ServicesPage() {
       {/* --- SECTION 3: SUBSCRIPTION BAR --- */}
       <section className="py-12 bg-white border-y border-slate-100 px-6">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-8">
-            <div className="flex items-center gap-6">
-                <div className="w-14 h-14 bg-black rounded-2xl flex items-center justify-center text-rose-500">
-                    <Crown size={28} />
-                </div>
-                <div>
-                    <h4 className="font-black uppercase tracking-tight text-lg">Elite Membership</h4>
-                    <p className="text-slate-400 text-sm font-medium">Fixed monthly rates for total peace of mind.</p>
-                </div>
+          <div className="flex items-center gap-6">
+            <div className="w-14 h-14 bg-black rounded-2xl flex items-center justify-center text-rose-500">
+              <Crown size={28} />
             </div>
+            <div>
+              <h4 className="font-black uppercase tracking-tight text-lg">Elite Membership</h4>
+              <p className="text-slate-400 text-sm font-medium">Fixed monthly rates for total peace of mind.</p>
+            </div>
+          </div>
         </div>
       </section>
     </div>

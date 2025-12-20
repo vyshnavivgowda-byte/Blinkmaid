@@ -21,6 +21,7 @@ import { ChevronLeft, ChevronRight, Star } from "lucide-react";
 import Image from "next/image";
 import useEmblaCarousel from "embla-carousel-react";
 import { useToast } from "@/app/components/toast/ToastContext";
+import { useRouter } from "next/navigation";
 
 // --- Existing Carousel & Card Components (omitted for brevity) ---
 // (Keep Carousel, CarouselContent, CarouselItem, CarouselButton, Card, CardContent as they are)
@@ -29,6 +30,7 @@ function Carousel({ children, className = "" }) {
     const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true });
     const [canScrollPrev, setCanScrollPrev] = useState(false);
     const [canScrollNext, setCanScrollNext] = useState(false);
+    const router = useRouter();
 
     const updateButtons = () => {
         if (!emblaApi) return;
@@ -189,6 +191,7 @@ export default function Home() {
 
     // ✅ Background image for hero (changed from video to image since it's a JPG)
     const bgImage = "/bg_pic.jpg"; // Hero section background image
+    const router = useRouter();
 
     // ✅ Background video for second section
     const bgClip2 = "/videos/clip.mp4"; // Second video section
@@ -244,7 +247,7 @@ export default function Home() {
                     Your one-stop platform for cleaning, maintenance, and convenience. Experience top-tier services with a touch of innovation.
                 </motion.p>
                 <motion.a
-                    href="#services"
+                    href="/services"
                     className="mt-10 px-10 py-4 bg-gradient-to-r from-blinkred to-blinkblack hover:from-blinkblack hover:to-blinkred text-blinkwhite rounded-full font-bold text-lg shadow-2xl transition-all duration-300 transform hover:scale-105"
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
@@ -319,7 +322,7 @@ export default function Home() {
                                             </p>
 
                                             <motion.a
-                                                href="#contact"
+                                                onClick={() => router.push(`/services/${s.id}`)}
                                                 className="inline-flex items-center justify-center w-full py-4 bg-white/10 backdrop-blur-md border border-white/20 text-white rounded-xl font-bold hover:bg-blinkred hover:border-blinkred transition-all duration-300 group/btn"
                                                 whileTap={{ scale: 0.95 }}
                                             >
@@ -512,7 +515,7 @@ export default function Home() {
                                     }`}
                                 initial={{ opacity: 0, y: 40 }}
                                 whileInView={{ opacity: 1, y: 0 }}
-                                 whileHover={{ y: -20 }}
+                                whileHover={{ y: -20 }}
                                 transition={{ delay: index * 0.1 }}
                             >
                                 {/* Internal Card */}
@@ -681,10 +684,10 @@ export default function Home() {
                                         required
                                     >
                                         <option value="" className="bg-[#222222]">Select Service</option>
-                                        <option className="bg-[#222222]">House Cleaning</option>
                                         <option className="bg-[#222222]">Cooking</option>
                                         <option className="bg-[#222222]">Baby Care</option>
                                         <option className="bg-[#222222]">Senior Care</option>
+                                                                                <option className="bg-[#222222]">Other</option>
                                     </select>
                                 </div>
 

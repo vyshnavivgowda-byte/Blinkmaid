@@ -31,7 +31,7 @@ export default function ServiceBookingFlow() {
   const router = useRouter();
   const reviewBtnRef = useRef(null);
   const dateTimeRef = useRef(null);
-
+  const [paymentSuccess, setPaymentSuccess] = useState(false);
   const [step, setStep] = useState(1);
   const [service, setService] = useState(null);
   const [cities, setCities] = useState([]);
@@ -50,6 +50,23 @@ export default function ServiceBookingFlow() {
   const [showSignInModal, setShowSignInModal] = useState(false);
   const [authLoading, setAuthLoading] = useState(false);
   const [signInData, setSignInData] = useState({ email: "", password: "" });
+  const [signInError, setSignInError] = useState(null);
+  const [serviceTax, setServiceTax] = useState(0);
+
+  const [customerDetails, setCustomerDetails] = useState({
+    fullName: "",
+    mobile: "",
+    altMobile: "",
+    flat: "",
+    floor: "",
+    building: "",
+    street: "",
+    area: "",
+    landmark: "",
+    city: "",
+    state: "",
+    pincode: "",
+  });
 
   const steps = ["Location", "Plan", "Configuration", "Payment"];
   const progress = (step / steps.length) * 100;
@@ -111,13 +128,23 @@ export default function ServiceBookingFlow() {
      Pricing
   ------------------------------ */
   useEffect(() => {
-    const base = Number(service?.price || 0);
-    const plan = Number(selectedSubService?.price || 0);
+    const planPrice = Number(selectedSubService?.price || 0);
     const addons = Object.values(questionPrices).reduce((a, b) => a + b, 0);
-    setTotalPrice(base + plan + addons);
-  }, [service, selectedSubService, questionPrices]);
+    const subtotal = planPrice + addons;
 
-  const finalAmount = isSubscribed ? Math.round(totalPrice * 0.9) : totalPrice; // 10% discount for subscribers
+    const isTaxablePlan =
+      selectedSubService?.name?.toLowerCase().includes("daily") ||
+      selectedSubService?.name?.toLowerCase().includes("hourly");
+
+    const tax = isTaxablePlan ? Math.round(subtotal * 0.1) : 0;
+
+    setServiceTax(tax);
+    setTotalPrice(subtotal + tax);
+  }, [selectedSubService, questionPrices]);
+
+  const finalAmount = isSubscribed
+    ? Math.round(totalPrice * 0.9)
+    : totalPrice;
 
   if (loading) {
     return (
@@ -152,20 +179,37 @@ export default function ServiceBookingFlow() {
 
   const handleSignIn = async () => {
     setAuthLoading(true);
+    setSignInError(null);
+
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email: signInData.email,
         password: signInData.password,
       });
-      if (error) throw error;
+
+      if (error) {
+        setSignInError("Invalid email or password");
+        return; // Stay on modal
+      }
+
+      // Success: Close modal and proceed to step 4
       setShowSignInModal(false);
-      // Reload to check subscription
-      window.location.reload();
+      setStep(4);
     } catch (err) {
-      setError(err.message);
+      setSignInError("Something went wrong. Please try again.");
     } finally {
       setAuthLoading(false);
     }
+  };
+
+  const loadRazorpay = () => {
+    return new Promise((resolve) => {
+      const script = document.createElement("script");
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
   };
 
   const handlePayment = async () => {
@@ -175,105 +219,140 @@ export default function ServiceBookingFlow() {
       return;
     }
 
+    if (!isAddressValid()) {
+      setError("Please complete service address details before payment.");
+      return;
+    }
+
     try {
-      // Create Razorpay order (call your backend API)
+      // Load Razorpay SDK
+      const sdkLoaded = await loadRazorpay();
+      if (!sdkLoaded) throw new Error("Razorpay SDK failed to load");
+
+      // Create order via backend (amount in paise)
       const response = await fetch("/api/create-razorpay-order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount: finalAmount * 100 }), // Amount in paisa
+        body: JSON.stringify({ amount: finalAmount * 100 }), // Convert to paise
       });
-      const order = await response.json();
-      console.log("Razorpay amount (paisa):", finalAmount * 100); // Debug log
 
+      const order = await response.json();
+      if (!order?.id) throw new Error(order?.error || "Failed to create Razorpay order");
+
+      // Razorpay options
       const options = {
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID, // From .env.local
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
         amount: order.amount,
-        currency: "INR",
-        name: "Service Booking",
+        currency: order.currency || "INR",
+        name: "BlinkMaid",
         description: `${service.name} - ${selectedSubService?.name}`,
         order_id: order.id,
-        handler: async (response) => {
-          // Payment success
+        handler: async (res) => {
+          if (!res.razorpay_payment_id) {
+            setError("Payment was not completed properly");
+            return;
+          }
+
           await supabase.from("bookings").insert([
             {
               user_id: user.id,
               service_name: service.name,
               sub_service_name: selectedSubService?.name,
               city: selectedCity?.name,
-              service_price: Number(service.price || 0),
               sub_service_price: Number(selectedSubService?.price || 0),
+              service_tax: serviceTax,
               total_price: totalPrice,
-              discount_applied: isSubscribed,
               final_amount: finalAmount,
+              discount_applied: isSubscribed,
               booking_date: bookingData.startDate,
               work_time: bookingData.workTime,
               notes: bookingData.notes,
+              customer_details: customerDetails,
               payment_status: "paid",
-              payment_id: response.razorpay_payment_id,
-              order_id: response.razorpay_order_id,
+              payment_id: res.razorpay_payment_id,
+              order_id: res.razorpay_order_id,
             },
           ]);
-          router.push("/payment-success");
+
+          setPaymentSuccess(true);
+          setTimeout(() => router.push("/home"), 2000);
         },
         prefill: {
           email: user.email,
+          contact: customerDetails.mobile,
+          name: customerDetails.fullName,
         },
-        theme: {
-          color: "#E63946", // blinkred
-        },
+        theme: { color: "#E63946" },
       };
-      const rzp = new Razorpay(options);
+
+      const rzp = new window.Razorpay(options);
       rzp.open();
     } catch (err) {
-      setError("Payment failed: " + err.message);
+      setError("Payment failed: " + (err.message || err));
     }
+  };
+
+  const isAddressValid = () => {
+    const requiredFields = [
+      "fullName",
+      "mobile",
+      "flat",
+      "street",
+      "area",
+      "city",
+      "state",
+      "pincode",
+    ];
+
+    return requiredFields.every(
+      (field) => customerDetails[field]?.trim() !== ""
+    ) && customerDetails.mobile.length === 10 && customerDetails.pincode.length === 6;
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blinkwhite to-slate-50">
-    {/* Header - Changed to fixed with slight offset to prevent overlap issues when scrolling */}
-<header className="fixed top-4 z-50 bg-blinkwhite/90 backdrop-blur-md border-b shadow-sm w-full">
-  <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-    <div className="flex items-center gap-4">
-      <button
-        onClick={() => router.back()}
-        className="p-2 rounded-lg border hover:bg-slate-100 transition-colors"
-        aria-label="Go back"
-      >
-        <ArrowLeft size={18} />
-      </button>
-      <div className="text-left">
-        <h1 className="text-xl font-semibold text-blinkblack">{service.name}</h1>
-        <p className="text-xs text-slate-400">Estimated total</p>
-        <p className="text-lg font-semibold text-blinkblack">₹{finalAmount.toLocaleString()}</p>
-      </div>
-    </div>
-
-    {/* Progress Bar and Steps */}
-    <div className="flex items-center gap-2 text-sm">
-      {steps.map((label, i) => {
-        const active = step === i + 1;
-        const completed = step > i + 1;
-        return (
-          <div key={`step-${i}`} className="flex items-center gap-2">
-            <span
-              className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold transition-all ${
-                completed ? "bg-green-600 text-white" : active ? "bg-blinkred text-white" : "bg-slate-200 text-slate-600"
-              }`}
+      {/* Header */}
+      <header className="fixed top-4 z-50 bg-blinkwhite/90 backdrop-blur-md border-b shadow-sm w-full">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => router.back()}
+              className="p-2 rounded-lg border hover:bg-slate-100 transition-colors"
+              aria-label="Go back"
             >
-              {completed ? <CheckCircle size={16} /> : i + 1}
-            </span>
-            <span className={`hidden sm:block ${active ? "text-blinkblack font-medium" : "text-slate-400"}`}>
-              {label}
-            </span>
-            {i < steps.length - 1 && <ChevronRight size={14} className="text-slate-300" />}
+              <ArrowLeft size={18} />
+            </button>
+            <div className="text-left">
+              <h1 className="text-xl font-semibold text-blinkblack">{service.name}</h1>
+              <p className="text-xs text-slate-400">Estimated total</p>
+              <p className="text-lg font-semibold text-blinkblack">₹{finalAmount.toLocaleString()}</p>
+            </div>
           </div>
-        );
-      })}
-    </div>
-  </div>
-</header>
-      {/* Content - Added padding-top to account for fixed header height (approx 80px) */}
+
+          {/* Progress Bar and Steps */}
+          <div className="flex items-center gap-2 text-sm">
+            {steps.map((label, i) => {
+              const active = step === i + 1;
+              const completed = step > i + 1;
+              return (
+                <div key={`step-${i}`} className="flex items-center gap-2">
+                  <span
+                    className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold transition-all ${completed ? "bg-green-600 text-white" : active ? "bg-blinkred text-white" : "bg-slate-200 text-slate-600"
+                      }`}
+                  >
+                    {completed ? <CheckCircle size={16} /> : i + 1}
+                  </span>
+                  <span className={`hidden sm:block ${active ? "text-blinkblack font-medium" : "text-slate-400"}`}>
+                    {label}
+                  </span>
+                  {i < steps.length - 1 && <ChevronRight size={14} className="text-slate-300" />}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </header>
+      {/* Content */}
       <main className="max-w-5xl mx-auto px-6 py-14 pt-24">
         <AnimatePresence mode="wait">
           {/* STEP 1: Location */}
@@ -392,11 +471,10 @@ export default function ServiceBookingFlow() {
                             setUserAnswers({ ...userAnswers, [qId]: opt.option });
                             setQuestionPrices({ ...questionPrices, [qId]: Number(opt.price || 0) });
                           }}
-                          className={`flex justify-between items-center px-5 py-4 rounded-xl border transition-all duration-300 shadow-sm ${
-                            isSelected
-                              ? "bg-red-50 border-blinkred shadow-lg"
-                              : "bg-blinkwhite border-slate-200 hover:bg-slate-50 hover:shadow-md hover:border-blinkred"
-                          }`}
+                          className={`flex justify-between items-center px-5 py-4 rounded-xl border transition-all duration-300 shadow-sm ${isSelected
+                            ? "bg-red-50 border-blinkred shadow-lg"
+                            : "bg-blinkwhite border-slate-200 hover:bg-slate-50 hover:shadow-md hover:border-blinkred"
+                            }`}
                           whileHover={{ scale: 1.02 }}
                           whileTap={{ scale: 0.98 }}
                         >
@@ -537,10 +615,6 @@ export default function ServiceBookingFlow() {
                 {/* Pricing Breakdown */}
                 <div className="space-y-3">
                   <div className="flex justify-between items-center text-sm p-2 rounded-lg hover:bg-slate-50 transition">
-                    <span className="text-slate-600">Base Price</span>
-                    <span className="font-medium">₹{Number(service.price || 0).toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between items-center text-sm p-2 rounded-lg hover:bg-slate-50 transition">
                     <span className="text-slate-600">Plan Price</span>
                     <span className="font-medium">₹{Number(selectedSubService?.price || 0).toLocaleString()}</span>
                   </div>
@@ -550,6 +624,15 @@ export default function ServiceBookingFlow() {
                       <span className="font-medium">₹{Object.values(questionPrices).reduce((a, b) => a + b, 0)}</span>
                     </div>
                   )}
+                  {serviceTax > 0 && (
+                    <div className="flex justify-between items-center text-sm p-2 rounded-lg hover:bg-slate-50 transition">
+                      <span className="text-slate-600">Service Tax (10%)</span>
+                      <span className="font-medium">
+                        ₹{serviceTax.toLocaleString()}
+                      </span>
+                    </div>
+                  )}
+
                   <div className={`flex justify-between items-center text-lg font-semibold p-2 rounded-lg bg-slate-50 ${isSubscribed ? "line-through text-slate-500" : ""}`}>
                     <span className="text-blinkblack">Total Amount</span>
                     <span className="text-blinkblack">₹{totalPrice.toLocaleString()}</span>
@@ -578,6 +661,128 @@ export default function ServiceBookingFlow() {
                     </button>
                   </div>
                 )}
+                {/* SERVICE ADDRESS */}
+                <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-6">
+                  <h3 className="text-xl font-semibold text-blinkblack">Service Address & Contact</h3>
+
+                  {/* Contact Info */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="flex flex-col">
+                      <label className="text-sm text-slate-500 mb-1">Full Name</label>
+                      <input
+                        placeholder="Enter full name"
+                        value={customerDetails.fullName}
+                        onChange={(e) =>
+                          setCustomerDetails({ ...customerDetails, fullName: e.target.value })
+                        }
+                        className="input border rounded-lg px-4 py-2 focus:ring-rose-500 focus:border-rose-500 outline-none transition"
+                      />
+                    </div>
+
+                    <div className="flex flex-col">
+                      <label className="text-sm text-slate-500 mb-1">Mobile Number</label>
+                      <input
+                        type="tel"
+                        placeholder="Enter mobile number"
+                        value={customerDetails.mobile}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/\D/g, ""); // allow only digits
+                          if (val.length <= 10) {
+                            setCustomerDetails({ ...customerDetails, mobile: val });
+                          }
+                        }}
+                        className="input border rounded-lg px-4 py-2 focus:ring-rose-500 focus:border-rose-500 outline-none transition"
+                      />
+                      {customerDetails.mobile.length > 0 && customerDetails.mobile.length < 10 && (
+                        <span className="text-red-500 text-sm mt-1">Mobile number must be 10 digits</span>
+                      )}
+                    </div>
+
+                    <div className="flex flex-col md:col-span-2">
+                      <label className="text-sm text-slate-500 mb-1">Alternate Mobile (Optional)</label>
+                      <input
+                        type="tel"
+                        placeholder="Alternate mobile"
+                        value={customerDetails.altMobile}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/\D/g, "");
+                          if (val.length <= 10) {
+                            setCustomerDetails({ ...customerDetails, altMobile: val });
+                          }
+                        }}
+                        className="input border rounded-lg px-4 py-2 focus:ring-rose-500 focus:border-rose-500 outline-none transition"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Address Info */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {[
+                      { label: "Flat / House / Plot No", key: "flat" },
+                      { label: "Floor", key: "floor" },
+                      { label: "Building / Apartment Name", key: "building" },
+                      { label: "Street / Locality", key: "street" },
+                      { label: "Area / Zone", key: "area" },
+                      { label: "Landmark (Optional)", key: "landmark" },
+                    ].map((field) => (
+                      <div className="flex flex-col" key={field.key}>
+                        <label className="text-sm text-slate-500 mb-1">{field.label}</label>
+                        <input
+                          placeholder={field.label}
+                          value={customerDetails[field.key]}
+                          onChange={(e) =>
+                            setCustomerDetails({ ...customerDetails, [field.key]: e.target.value })
+                          }
+                          className="input border rounded-lg px-4 py-2 focus:ring-rose-500 focus:border-rose-500 outline-none transition"
+                        />
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* City/State/Pincode */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="flex flex-col">
+                      <label className="text-sm text-slate-500 mb-1">City / Town</label>
+                      <input
+                        placeholder="City / Town"
+                        value={customerDetails.city}
+                        onChange={(e) =>
+                          setCustomerDetails({ ...customerDetails, city: e.target.value })
+                        }
+                        className="input border rounded-lg px-4 py-2 focus:ring-rose-500 focus:border-rose-500 outline-none transition"
+                      />
+                    </div>
+
+                    <div className="flex flex-col">
+                      <label className="text-sm text-slate-500 mb-1">State</label>
+                      <input
+                        placeholder="State"
+                        value={customerDetails.state}
+                        onChange={(e) =>
+                          setCustomerDetails({ ...customerDetails, state: e.target.value })
+                        }
+                        className="input border rounded-lg px-4 py-2 focus:ring-rose-500 focus:border-rose-500 outline-none transition"
+                      />
+                    </div>
+
+                    <div className="flex flex-col">
+                      <label className="text-sm text-slate-500 mb-1">Pincode</label>
+                      <input
+                        type="text"
+                        placeholder="Pincode"
+                        value={customerDetails.pincode}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/\D/g, ""); // only digits
+                          if (val.length <= 6) setCustomerDetails({ ...customerDetails, pincode: val });
+                        }}
+                        className="input border rounded-lg px-4 py-2 focus:ring-rose-500 focus:border-rose-500 outline-none transition"
+                      />
+                      {customerDetails.pincode.length > 0 && customerDetails.pincode.length < 6 && (
+                        <span className="text-red-500 text-sm mt-1">Pincode must be 6 digits</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
 
                 <div className="flex flex-col sm:flex-row gap-4 pt-6">
                   <button
@@ -588,7 +793,10 @@ export default function ServiceBookingFlow() {
                   </button>
                   <button
                     onClick={handlePayment}
-                    className="w-full sm:w-1/2 bg-blinkred text-blinkwhite py-3 rounded-lg font-medium hover:bg-red-700 transition flex items-center justify-center gap-2"
+                    disabled={!isAddressValid()}
+                    className="w-full sm:w-1/2 bg-blinkred text-white py-3 rounded-lg font-medium
+             hover:bg-red-700 transition disabled:opacity-50 disabled:cursor-not-allowed
+             flex items-center justify-center gap-2"
                   >
                     <CreditCard size={18} />
                     Proceed to Secure Payment
@@ -628,6 +836,11 @@ export default function ServiceBookingFlow() {
                 value={signInData.password}
                 onChange={(e) => setSignInData({ ...signInData, password: e.target.value })}
               />
+              {signInError && (
+                <p className="text-red-600 text-sm text-center">
+                  {signInError}
+                </p>
+              )}
               <button
                 onClick={handleSignIn}
                 disabled={authLoading}
@@ -643,6 +856,15 @@ export default function ServiceBookingFlow() {
               </button>
             </div>
           </motion.div>
+        </div>
+      )}
+      {paymentSuccess && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
+          <div className="bg-white p-8 rounded-2xl text-center shadow-lg">
+            <CheckCircle className="mx-auto text-green-500 mb-4" size={48} />
+            <h3 className="text-xl font-bold">Payment Successful!</h3>
+            <p className="text-slate-600 mt-2">Redirecting to home...</p>
+          </div>
         </div>
       )}
     </div>

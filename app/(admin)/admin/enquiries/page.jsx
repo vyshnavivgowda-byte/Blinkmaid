@@ -2,7 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { ClipboardList, Mail, Trash2, Search, User } from "lucide-react";
+import {
+  ClipboardList, Mail, Trash2, Search, User, Clock,
+  X,        // Add this
+  Phone,    // Add this
+  Users,    // Add this
+  IndianRupee, // Add this
+  MapPin,   // Add this (if used)
+  AlertTriangle // Add this (for the delete popup 
+} from "lucide-react";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
@@ -316,38 +324,95 @@ export default function EnquiriesDashboard() {
             </div>
           )}
 
-          {/* 🔹 View Modal */}
+          {/* 🔹 View Modal (Horizontal Design) */}
           {showModal && selectedEnquiry && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-              <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-lg relative">
-                <button
-                  onClick={() => setShowModal(false)}
-                  className="absolute top-3 right-3 text-gray-600 hover:text-red-600 text-xl"
-                >
-                  ✕
-                </button>
-                <h2 className="text-2xl font-bold text-gray-900 mb-4">Enquiry Details</h2>
-                <div className="space-y-3 text-gray-800">
-                  <p><strong>Name:</strong> {selectedEnquiry.full_name}</p>
-                  <p><strong>Email:</strong> {selectedEnquiry.email}</p>
-                  <p><strong>Phone:</strong> {selectedEnquiry.phone_number}</p>
-                  <p><strong>Number of Workers:</strong> {selectedEnquiry.number_of_workers}</p>
-                  <p><strong>Type of Work:</strong> {selectedEnquiry.type_of_work}</p>
-                  {selectedEnquiry.preferred_contact_time && (
-                    <p><strong>Preferred Contact Time:</strong> {selectedEnquiry.preferred_contact_time}</p>
-                  )}
-                  <p>
-                    <strong>Message:</strong>
-                    <span className="block mt-1 bg-gray-100 p-3 rounded-lg">
-                      {selectedEnquiry.message || "No message provided"}
-                    </span>
-                  </p>
-                  <p><strong>Date:</strong> {new Date(selectedEnquiry.created_at).toLocaleString()}</p>
-                </div>
-                <div className="mt-5 text-right">
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in duration-200 border border-gray-200">
+
+                {/* Modal Header */}
+                <div className="bg-gray-50 border-b border-gray-200 p-4 flex justify-between items-center">
+                  <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                    <Eye size={20} className="text-gray-500" /> Enquiry Details
+                  </h3>
                   <button
                     onClick={() => setShowModal(false)}
-                    className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700"
+                    className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-1 rounded-full transition"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+
+                <div className="flex flex-col md:flex-row">
+                  {/* Left Side: Summary Info */}
+                  <div className="w-full md:w-1/3 bg-gray-50 p-6 flex flex-col items-center justify-start border-b md:border-b-0 md:border-r border-gray-200 text-center">
+                    <div className="w-20 h-20 bg-white rounded-full border border-gray-300 flex items-center justify-center shadow-sm mb-4">
+                      <span className="text-2xl font-bold text-gray-400">
+                        {selectedEnquiry.full_name?.charAt(0)}
+                      </span>
+                    </div>
+                    <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Received On</p>
+                    <p className="text-gray-700 font-semibold text-sm">
+                      {new Date(selectedEnquiry.created_at).toLocaleDateString()}
+                    </p>
+
+                  </div>
+
+                  {/* Right Side: Detailed Details */}
+                  <div className="w-full md:w-2/3 p-6 space-y-6">
+                    <div>
+                      <h2 className="text-2xl font-bold text-gray-900 leading-none">{selectedEnquiry.full_name}</h2>
+                      <p className="text-sm text-gray-500 mt-1 flex items-center gap-1">
+                        <Mail size={14} /> {selectedEnquiry.email}
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {/* Contact */}
+                      <div>
+                        <label className="text-[10px] font-bold text-gray-400 uppercase">Phone Number</label>
+                        <p className="text-gray-800 font-medium flex items-center gap-2 mt-0.5">
+                          <Phone size={14} className="text-gray-400" /> {selectedEnquiry.phone_number}
+                        </p>
+                      </div>
+
+                      {/* Workers Needed */}
+                      <div>
+                        <label className="text-[10px] font-bold text-gray-400 uppercase">Requirement</label>
+                        <p className="text-gray-900 font-bold flex items-center gap-2 mt-0.5">
+                          <Users size={14} className="text-gray-400" /> {selectedEnquiry.number_of_workers} Workers
+                        </p>
+                      </div>
+
+                      {/* Work Type */}
+                      <div>
+                        <label className="text-[10px] font-bold text-gray-400 uppercase">Type of Work</label>
+                        <p className="text-gray-800 font-medium mt-0.5">{selectedEnquiry.type_of_work}</p>
+                      </div>
+
+                      {/* Preferred Time */}
+                      <div>
+                        <label className="text-[10px] font-bold text-gray-400 uppercase">Preferred Time</label>
+                        <p className="text-gray-800 font-medium flex items-center gap-2 mt-0.5">
+                          <Clock size={14} className="text-gray-400" /> {selectedEnquiry.preferred_contact_time || "Anytime"}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Message Block */}
+                    <div>
+                      <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1.5">Customer Message</label>
+                      <div className="bg-gray-50 border border-gray-100 p-4 rounded-xl italic text-gray-600 text-sm leading-relaxed">
+                        "{selectedEnquiry.message || "No specific message provided by the customer."}"
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer / Close Button */}
+                <div className="bg-gray-50 p-4 border-t border-gray-200 flex justify-end">
+                  <button
+                    onClick={() => setShowModal(false)}
+                    className="px-6 py-2 bg-gray-800 text-white text-sm rounded-lg font-bold hover:bg-black transition-all active:scale-95 shadow-md"
                   >
                     Close
                   </button>

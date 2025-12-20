@@ -3,12 +3,14 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { motion } from "framer-motion";
+import { toast } from "react-hot-toast";
+
 
 import {
   User,
   MapPin,
   Briefcase,
-IndianRupee,
+  IndianRupee,
   CheckCircle,
   ArrowRight,
   ShieldCheck,
@@ -29,6 +31,9 @@ export default function MaidRegistrationForm() {
 
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
+  const [photoBase64, setPhotoBase64] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState(null);
+
   // Add this near your other useState hooks
   const [activeStep, setActiveStep] = useState(0);
 
@@ -62,6 +67,29 @@ export default function MaidRegistrationForm() {
       address: { ...prev.address, [name]: value },
     }));
   };
+  const handlePhotoChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Optional size guard (recommended)
+    if (file.size > 2 * 1024 * 1024) {
+      alert("Photo must be under 2MB");
+      return;
+    }
+
+
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setPhotoBase64(reader.result); // base64 string
+      setPhotoPreview(reader.result);
+    };
+    reader.readAsDataURL(file);
+  };
+  const handleRemovePhoto = () => {
+    setPhotoBase64(null);
+    setPhotoPreview(null);
+  };
 
   const validateForm = () => {
     const newErrors = {};
@@ -87,7 +115,8 @@ export default function MaidRegistrationForm() {
         address: formData.address,      // jsonb
         experience: Number(formData.experience),
         salary: Number(formData.salary),
-        work_types: formData.workTypes  // text[]
+        work_types: formData.workTypes,
+        photo_base64: photoBase64  // text[]
       }
     ]);
 
@@ -96,6 +125,9 @@ export default function MaidRegistrationForm() {
       toast.error(error.message);
     } else {
       toast.success("Profile submitted for review.");
+      setPhotoBase64(null);
+      setPhotoPreview(null);
+
       setFormData({
         name: "",
         number: "",
@@ -347,6 +379,54 @@ export default function MaidRegistrationForm() {
                         labelClass="text-zinc-900 font-black uppercase tracking-widest text-xs mb-3 block"
                         className="text-base font-bold text-black border-zinc-300"
                       />
+                      <div className="md:col-span-2">
+                        <label className="text-zinc-900 font-black uppercase tracking-widest text-xs mb-3 block">
+                          Profile Photograph
+                        </label>
+
+                        <div className="flex items-center gap-6">
+                          {photoPreview ? (
+                            <div className="relative">
+                              <img
+                                src={photoPreview}
+                                alt="Preview"
+                                className="w-28 h-28 rounded-2xl object-cover border border-zinc-300"
+                              />
+
+                              {/* REMOVE IMAGE */}
+                              <button
+                                type="button"
+                                onClick={handleRemovePhoto}
+                                className="absolute -top-3 -right-3 w-8 h-8 rounded-full
+                   bg-black text-white font-black flex items-center justify-center
+                   hover:bg-blinkred transition"
+                                aria-label="Remove photo"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="w-28 h-28 rounded-2xl bg-zinc-100 flex items-center justify-center
+                    text-xs font-black text-zinc-400 uppercase">
+                              No Photo
+                            </div>
+                          )}
+
+                          <label className="cursor-pointer bg-black text-white px-6 py-4 rounded-xl
+                    font-black uppercase text-xs tracking-widest
+                    hover:bg-blinkred transition">
+                            {photoPreview ? "Change Photo" : "Upload Photo"}
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={handlePhotoChange}
+                              className="hidden"
+                            />
+                          </label>
+                        </div>
+
+                      </div>
+
                     </div>
                   </div>
                 </motion.div>
@@ -416,6 +496,47 @@ export default function MaidRegistrationForm() {
                     />
                   </div>
                 </motion.div>
+                {/* ================= SPECIALIZATION ================= */}
+                <motion.div className="bg-white rounded-[3rem] p-10 shadow-xl border border-zinc-200">
+                  <div className="flex items-center gap-4 mb-10">
+                    <div className="w-12 h-12 rounded-full bg-black flex items-center justify-center">
+                      <CheckCircle size={20} className="text-white" />
+                    </div>
+                    <h4 className="text-sm font-black uppercase tracking-[0.35em] text-black">
+                      Service Specialization
+                    </h4>
+                  </div>
+
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+                    {workOptions.map((option) => (
+                      <label
+                        key={option}
+                        className={`cursor-pointer rounded-2xl border-2 px-6 py-5 text-center
+        font-black uppercase tracking-widest text-xs transition-all
+        ${formData.workTypes.includes(option)
+                            ? "border-blinkred bg-blinkred text-white"
+                            : "border-zinc-200 bg-white text-black hover:border-blinkred"
+                          }`}
+                      >
+                        <input
+                          type="checkbox"
+                          value={option}
+                          checked={formData.workTypes.includes(option)}
+                          onChange={handleChange}
+                          className="hidden"
+                        />
+                        {option}
+                      </label>
+                    ))}
+                  </div>
+
+                  {errors.workTypes && (
+                    <p className="text-blinkred text-[10px] font-black uppercase tracking-widest mt-6">
+                      {errors.workTypes}
+                    </p>
+                  )}
+                </motion.div>
+
 
                 {/* ================= SUBMIT ================= */}
                 <div className="pt-10">

@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import {
-  Eye,
+  MapPin, Tag, IndianRupee, HelpCircle, Info, Briefcase, Edit3,
+  Eye, Settings2, Plus,
   Trash2,
   Wrench,
   X,
@@ -46,7 +47,6 @@ export default function ServiceListPage() {
   const [editServiceData, setEditServiceData] = useState({
     id: null,
     name: "",
-    price: "",
     city_id: null,
   });
 
@@ -151,7 +151,6 @@ export default function ServiceListPage() {
       setEditServiceData({
         id: service.id,
         name: service.name,
-        price: service.price,
         city_id: service.city_id,
       });
       setShowEditModal(true);
@@ -172,10 +171,6 @@ export default function ServiceListPage() {
       showToast("Service name is required", "error");
       return;
     }
-    if (!price || isNaN(price) || Number(price) < 0) {
-      showToast("Valid price is required", "error");
-      return;
-    }
     if (!city_id) {
       showToast("City must be selected", "error");
       return;
@@ -183,7 +178,7 @@ export default function ServiceListPage() {
 
     const { error } = await supabase
       .from("services")
-      .update({ name: name.trim(), price: Number(price), city_id })
+.update({ name: name.trim(), city_id })
       .eq("id", id);
 
     if (!error) {
@@ -227,7 +222,7 @@ export default function ServiceListPage() {
             ? q.options.map((o) => {
               // If stored as "Option Name (Price)", split it
               if (typeof o === "string" && o.includes("(") && o.includes(")")) {
-                const match = o.match(/(.*)\s*\((.*)\)/);
+                const match = o.match(/(.*)\s*\$(.*)\$/);
                 return {
                   option: match ? match[1].trim() : o,
                   price: match ? match[2].trim() : "",
@@ -316,6 +311,45 @@ export default function ServiceListPage() {
     setShowEditSubModal(true);
   };
 
+  // --- Excel & PDF for Services ---
+
+  const downloadExcel = () => {
+    const sheet = XLSX.utils.json_to_sheet(
+      services.map((s, i) => {
+        const city = cities.find((c) => c.id === s.city_id);
+        return {
+          "#": i + 1,
+          City: city?.name || "—",
+          Service: s.name,
+        };
+      })
+    );
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, sheet, "Services");
+    XLSX.writeFile(wb, "services.xlsx");
+  };
+
+  const downloadPDF = () => {
+    const doc = new jsPDF();
+    doc.text("Service List", 14, 15);
+
+    doc.autoTable({
+      head: [["#", "City", "Service"]],
+      body: services.map((s, i) => {
+        const city = cities.find((c) => c.id === s.city_id);
+        return [
+          i + 1,
+          city?.name || "—",
+          s.name,
+        ];
+      }),
+      startY: 20,
+    });
+
+    doc.save("services.pdf");
+  };
+
   // --- Excel & PDF for Plans ---
 
   const downloadExcelSubServices = () => {
@@ -400,298 +434,365 @@ export default function ServiceListPage() {
       </section>
 
       {/* --- Service List Section --- */}
-      <div className="flex justify-between items-center mb-6 px-8 mt-12">
-        <h1 className="text-3xl font-bold flex items-center gap-2">
-          <Wrench className="text-red-600" /> Service List
-        </h1>
+      <section className="bg-white border border-gray-300 rounded-2xl p-8 shadow-md mt-8">
+        <div className="flex justify-between items-center mb-6 px-8">
+          <h1 className="text-3xl font-bold flex items-center gap-2">
+            <Wrench className="text-red-600" /> Service List
+          </h1>
 
-        <div className="flex gap-3">
-          <button
-            onClick={() => downloadExcel()}
-            className="bg-green-600 text-white px-4 py-2 rounded-xl flex gap-2 hover:bg-green-700 transition"
-            aria-label="Download Excel"
-          >
-            <FileSpreadsheet size={18} /> Excel
-          </button>
-          <button
-            onClick={() => downloadPDF()}
-            className="bg-red-600 text-white px-4 py-2 rounded-xl flex gap-2 hover:bg-red-700 transition"
-            aria-label="Download PDF"
-          >
-            <FileDown size={18} /> PDF
-          </button>
+          <div className="flex gap-3">
+            <button
+              onClick={() => downloadExcel()}
+              className="bg-green-600 text-white px-4 py-2 rounded-xl flex gap-2 hover:bg-green-700 transition"
+              aria-label="Download Excel"
+            >
+              <FileSpreadsheet size={18} /> Excel
+            </button>
+            <button
+              onClick={() => downloadPDF()}
+              className="bg-red-600 text-white px-4 py-2 rounded-xl flex gap-2 hover:bg-red-700 transition"
+              aria-label="Download PDF"
+            >
+              <FileDown size={18} /> PDF
+            </button>
+          </div>
         </div>
-      </div>
 
-      {/* --- Service Table --- */}
-      <div className="bg-white rounded-xl shadow border overflow-x-auto mx-8">
-        <table className="min-w-full text-sm">
-          <thead className="bg-gray-100">
-            <tr>
-              <th className="px-6 py-3 text-left">#</th>
-              <th className="px-6 py-3 text-left">City</th>
-              <th className="px-6 py-3 text-left">Service</th>
-              <th className="px-6 py-3 text-left">Price</th>
-              <th className="px-6 py-3 text-center">Actions</th>
-            </tr>
-          </thead>
+        {/* --- Service Table --- */}
+        <div className="bg-white rounded-xl shadow border overflow-x-auto mx-8">
+          <table className="min-w-full text-sm">
+            <thead className="bg-gray-100">
+              <tr>
+                <th className="px-6 py-3 text-left">#</th>
+                <th className="px-6 py-3 text-left">City</th>
+                <th className="px-6 py-3 text-left">Service</th>
+                <th className="px-6 py-3 text-center">Actions</th>
+              </tr>
+            </thead>
 
-          <tbody>
-            {services.map((s, i) => {
-              const city = cities.find((c) => c.id === s.city_id);
-              return (
-                <tr key={s.id} className="border-t hover:bg-gray-50 transition">
-                  <td className="px-6 py-3">{i + 1}</td>
-                  <td className="px-6 py-3">{city?.name || "—"}</td>
-                  <td className="px-6 py-3 font-semibold">{s.name}</td>
-                  <td className="px-6 py-3">₹{s.price}</td>
-                  <td className="px-6 py-3 flex justify-center gap-3">
-                    <button
-                      onClick={() => handleView(s.id)}
-                      className="text-blue-600 hover:text-blue-800"
-                      aria-label={`View details of ${s.name}`}
-                      title="View"
-                    >
-                      <Eye size={18} />
-                    </button>
-                    <button
-                      onClick={() => handleEditOpen(s.id)}
-                      className="text-yellow-600 hover:text-yellow-800"
-                      aria-label={`Edit ${s.name}`}
-                      title="Edit"
-                    >
-                      <Edit2 size={18} />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(s.id, "service")}
-                      className="text-red-600 hover:text-red-800"
-                      aria-label={`Delete ${s.name}`}
-                      title="Delete"
-                    >
-                      <Trash2 size={18} />
-                    </button>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+            <tbody>
+              {services.map((s, i) => {
+                const city = cities.find((c) => c.id === s.city_id);
+                return (
+                  <tr key={s.id} className="border-t hover:bg-gray-50 transition">
+                    <td className="px-6 py-3">{i + 1}</td>
+                    <td className="px-6 py-3">{city?.name || "—"}</td>
+                    <td className="px-6 py-3 font-semibold">{s.name}</td>
+                    <td className="px-6 py-3 flex justify-center gap-3">
+                      <button
+                        onClick={() => handleView(s.id)}
+                        className="text-blue-600 hover:text-blue-800"
+                        aria-label={`View details of ${s.name}`}
+                        title="View"
+                      >
+                        <Eye size={18} />
+                      </button>
+                      <button
+                        onClick={() => handleEditOpen(s.id)}
+                        className="text-yellow-600 hover:text-yellow-800"
+                        aria-label={`Edit ${s.name}`}
+                        title="Edit"
+                      >
+                        <Edit2 size={18} />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(s.id, "service")}
+                        className="text-red-600 hover:text-red-800"
+                        aria-label={`Delete ${s.name}`}
+                        title="Delete"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </section>
 
       {/* --- Plans List Section --- */}
-      <div className="flex justify-between items-center mb-6 px-8 mt-16">
-        <h1 className="text-3xl font-bold flex items-center gap-2">
-          <Layers className="text-red-600" /> Plans List
-        </h1>
+      <section className="bg-white border border-gray-300 rounded-2xl p-8 shadow-md mt-8">
+        <div className="flex justify-between items-center mb-6 px-8">
+          <h1 className="text-3xl font-bold flex items-center gap-2">
+            <Layers className="text-red-600" /> Plans List
+          </h1>
 
-        <div className="flex gap-3">
-          <button
-            onClick={() => downloadExcelSubServices()}
-            className="bg-green-600 text-white px-4 py-2 rounded-xl flex gap-2 hover:bg-green-700 transition"
-            aria-label="Download Plans Excel"
-          >
-            <FileSpreadsheet size={18} /> Excel
-          </button>
-          <button
-            onClick={() => downloadPDFSubServices()}
-            className="bg-red-600 text-white px-4 py-2 rounded-xl flex gap-2 hover:bg-red-700 transition"
-            aria-label="Download Plans PDF"
-          >
-            <FileDown size={18} /> PDF
-          </button>
-        </div>
-      </div>
-
-      {/* --- Plans Table --- */}
-      <div className="bg-white rounded-xl shadow border overflow-x-auto mx-8 mb-16">
-        <table className="min-w-full text-sm">
-          <thead className="bg-gray-100">
-            <tr>
-              <th className="px-6 py-3 text-left">#</th>
-              <th className="px-6 py-3 text-left">Service</th>
-              <th className="px-6 py-3 text-left">Plan</th>
-              <th className="px-6 py-3 text-left">Price</th>
-              <th className="px-6 py-3 text-left">Questions</th>
-              <th className="px-6 py-3 text-center">Actions</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {subServices.map((ss, i) => {
-              const service = services.find((s) => s.id === ss.service_id);
-              return (
-                <tr key={ss.id} className="border-t hover:bg-gray-50 transition">
-                  <td className="px-6 py-3">{i + 1}</td>
-                  <td className="px-6 py-3">{service?.name || "—"}</td>
-                  <td className="px-6 py-3 font-semibold">{ss.name}</td>
-                  <td className="px-6 py-3">₹{ss.price}</td>
-                  <td className="px-6 py-3">
-                    {subServiceQuestions[ss.id]?.length || 0}
-                  </td>
-
-                  <td className="px-6 py-3 flex justify-center gap-3">
-                    <button
-                      onClick={() => handleViewSubService(ss.id)}
-                      className="text-blue-600 hover:text-blue-800"
-                      aria-label={`View details of Plan ${ss.name}`}
-                      title="View"
-                    >
-                      <Eye size={18} />
-                    </button>
-                    <button
-                      onClick={() => handleEditSubOpen(ss.id)}
-                      className="text-yellow-600 hover:text-yellow-800"
-                      aria-label={`Edit Plan ${ss.name}`}
-                      title="Edit"
-                    >
-                      <Edit2 size={18} />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(ss.id, "subService")}
-                      className="text-red-600 hover:text-red-800"
-                      aria-label={`Delete Plan ${ss.name}`}
-                      title="Delete"
-                    >
-                      <Trash2 size={18} />
-                    </button>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-
-      {/* --- View Service Modal --- */}
-      {showViewModal && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-6 max-w-xl w-full relative shadow-xl">
+          <div className="flex gap-3">
             <button
-              onClick={() => setShowViewModal(false)}
-              className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
-              aria-label="Close view modal"
+              onClick={() => downloadExcelSubServices()}
+              className="bg-green-600 text-white px-4 py-2 rounded-xl flex gap-2 hover:bg-green-700 transition"
+              aria-label="Download Plans Excel"
             >
-              <X size={24} />
+              <FileSpreadsheet size={18} /> Excel
             </button>
+            <button
+              onClick={() => downloadPDFSubServices()}
+              className="bg-red-600 text-white px-4 py-2 rounded-xl flex gap-2 hover:bg-red-700 transition"
+              aria-label="Download Plans PDF"
+            >
+              <FileDown size={18} /> PDF
+            </button>
+          </div>
+        </div>
 
-            <h2 className="text-xl font-bold mb-4">Service Details</h2>
-            <p>
-              <b>City:</b> {viewCity?.name}
-            </p>
-            <p>
-              <b>Service:</b> {viewService?.name}
-            </p>
-            <p>
-              <b>Price:</b> ₹{viewService?.price}
-            </p>
+        {/* --- Plans Table --- */}
+        <div className="bg-white rounded-xl shadow border overflow-x-auto mx-8 mb-16">
+          <table className="min-w-full text-sm">
+            <thead className="bg-gray-100">
+              <tr>
+                <th className="px-6 py-3 text-left">#</th>
+                <th className="px-6 py-3 text-left">Service</th>
+                <th className="px-6 py-3 text-left">Plan</th>
+                <th className="px-6 py-3 text-left">Price</th>
+                <th className="px-6 py-3 text-left">Questions</th>
+                <th className="px-6 py-3 text-center">Actions</th>
+              </tr>
+            </thead>
 
-            <h3 className="mt-4 font-semibold">Plan</h3>
-            {viewSubServices.length ? (
-              <ul className="list-disc ml-5">
-                {viewSubServices.map((ss) => (
-                  <li key={ss.id}>
-                    {ss.name} – ₹{ss.price}{" "}
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-gray-500">No Plan</p>
-            )}
+            <tbody>
+              {subServices.map((ss, i) => {
+                const service = services.find((s) => s.id === ss.service_id);
+                return (
+                  <tr key={ss.id} className="border-t hover:bg-gray-50 transition">
+                    <td className="px-6 py-3">{i + 1}</td>
+                    <td className="px-6 py-3">{service?.name || "—"}</td>
+                    <td className="px-6 py-3 font-semibold">{ss.name}</td>
+                    <td className="px-6 py-3">₹{ss.price}</td>
+                    <td className="px-6 py-3">
+                      {subServiceQuestions[ss.id]?.length || 0}
+                    </td>
+
+                    <td className="px-6 py-3 flex justify-center gap-3">
+                      <button
+                        onClick={() => handleViewSubService(ss.id)}
+                        className="text-blue-600 hover:text-blue-800"
+                        aria-label={`View details of Plan ${ss.name}`}
+                        title="View"
+                      >
+                        <Eye size={18} />
+                      </button>
+                      <button
+                        onClick={() => handleEditSubOpen(ss.id)}
+                        className="text-yellow-600 hover:text-yellow-800"
+                        aria-label={`Edit Plan ${ss.name}`}
+                        title="Edit"
+                      >
+                        <Edit2 size={18} />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(ss.id, "subService")}
+                        className="text-red-600 hover:text-red-800"
+                        aria-label={`Delete Plan ${ss.name}`}
+                        title="Delete"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      {/* 🔹 View Service Modal (Horizontal Design) */}
+      {showViewModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in duration-200 border border-gray-200">
+
+            {/* Modal Header */}
+            <div className="bg-gray-50 border-b border-gray-200 p-4 flex justify-between items-center">
+              <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                <Info size={20} className="text-gray-500" /> Service Overview
+              </h3>
+              <button
+                onClick={() => setShowViewModal(false)}
+                className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-1 rounded-full transition"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="flex flex-col md:flex-row">
+              {/* Left Side: Summary & Location */}
+              <div className="w-full md:w-1/3 bg-gray-50 p-6 flex flex-col items-center justify-start border-b md:border-b-0 md:border-r border-gray-200 text-center">
+                <div className="w-20 h-20 bg-white rounded-2xl border border-gray-300 flex items-center justify-center shadow-sm mb-4 text-gray-400">
+                  <Briefcase size={32} />
+                </div>
+
+
+                <div className="mt-8 w-full">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">Service Location</label>
+                  <p className="text-gray-700 font-semibold text-sm flex items-center justify-center gap-1">
+                    <MapPin size={14} className="text-gray-400" /> {viewCity?.name}
+                  </p>
+                </div>
+              </div>
+
+              {/* Right Side: Service Name & Sub-Plans */}
+              <div className="w-full md:w-2/3 p-6 space-y-6">
+                <div>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase">Service Name</label>
+                  <h2 className="text-2xl font-bold text-gray-900 leading-none mt-1">
+                    {viewService?.name}
+                  </h2>
+                </div>
+
+                <hr className="border-gray-100" />
+
+                {/* Sub-Services / Plans Section */}
+                <div>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase flex items-center gap-2 mb-3">
+                    <Layers size={14} /> Associated Plans ({viewSubServices.length})
+                  </label>
+
+                  {viewSubServices.length ? (
+                    <div className="grid gap-2">
+                      {viewSubServices.map((ss) => (
+                        <div
+                          key={ss.id}
+                          className="flex justify-between items-center p-3 rounded-xl border border-gray-100 bg-gray-50/50 hover:bg-gray-50 transition-colors"
+                        >
+                          <span className="text-sm font-bold text-gray-700">{ss.name}</span>
+                          <span className="text-sm font-black text-gray-900">₹{ss.price}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="py-8 text-center border-2 border-dashed border-gray-100 rounded-2xl">
+                      <p className="text-gray-400 text-xs italic">No additional plans added to this service yet.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="bg-gray-50 p-4 border-t border-gray-200 flex justify-end">
+              <button
+                onClick={() => setShowViewModal(false)}
+                className="px-6 py-2 bg-gray-900 text-white text-sm rounded-lg font-bold hover:bg-black transition-all active:scale-95 shadow-md"
+              >
+                Close View
+              </button>
+            </div>
           </div>
         </div>
       )}
 
-      {/* --- View Plans Modal --- */}
-      {showViewSubModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-3xl shadow-xl w-full max-w-lg relative overflow-y-auto max-h-[90vh]">
-            {/* Close Button */}
-            <button
-              onClick={() => setShowViewSubModal(false)}
-              className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 transition"
-              aria-label="Close Plan view modal"
-            >
-              <X size={24} />
-            </button>
+      {/* 🔹 View Plans Modal (Horizontal Design) */}
+      {showViewSubModal && viewSubService && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden animate-in fade-in zoom-in duration-200 border border-gray-200 max-h-[90vh] flex flex-col">
 
-            {/* Header */}
-            <div className="px-6 py-5 border-b border-gray-200">
-              <h2 className="text-2xl font-bold text-gray-800">Plan Details</h2>
+            {/* Modal Header */}
+            <div className="bg-gray-50 border-b border-gray-200 p-4 flex justify-between items-center shrink-0">
+              <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                <Layers size={20} className="text-gray-500" /> Plan Overview
+              </h3>
+              <button
+                onClick={() => setShowViewSubModal(false)}
+                className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-1 rounded-full transition"
+              >
+                <X size={20} />
+              </button>
             </div>
 
-            {/* Content */}
-            <div className="px-6 py-6 space-y-4">
-              {/* Parent Service */}
-              <div className="flex justify-between">
-                <span className="font-semibold text-gray-700">Parent Service:</span>
-                <span className="text-gray-900 font-medium">
-                  {services.find((s) => s.id === viewSubService?.service_id)?.name || "—"}
-                </span>
+            <div className="flex flex-col md:flex-row overflow-y-auto">
+              {/* Left Side: Summary Info */}
+              <div className="w-full md:w-1/3 bg-gray-50 p-6 flex flex-col items-center justify-start border-b md:border-b-0 md:border-r border-gray-200 text-center">
+                <div className="w-20 h-20 bg-white rounded-2xl border border-gray-300 flex items-center justify-center shadow-sm mb-4">
+                  <Tag size={32} className="text-gray-400" />
+                </div>
+
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Base Price</label>
+                <p className="text-2xl font-black text-gray-900 flex items-center justify-center gap-1">
+                  <IndianRupee size={18} /> {viewSubService.price}
+                </p>
+
+                <div className="mt-8 w-full space-y-4">
+                  <div>
+                    <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">Parent Service</label>
+                    <span className="bg-gray-200 text-gray-700 px-3 py-1 rounded-md text-[11px] font-bold block truncate">
+                      {services.find((s) => s.id === viewSubService?.service_id)?.name || "—"}
+                    </span>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">Availability</label>
+                    <p className="text-gray-700 font-semibold text-xs flex items-center justify-center gap-1">
+                      <MapPin size={12} /> {cities.find(
+                        (c) => c.id === services.find((s) => s.id === viewSubService?.service_id)?.city_id
+                      )?.name || "—"}
+                    </p>
+                  </div>
+                </div>
               </div>
 
-              {/* Location / City */}
-              <div className="flex justify-between">
-                <span className="font-semibold text-gray-700">Location:</span>
-                <span className="text-gray-900 font-medium">
-                  {cities.find(
-                    (c) => c.id === services.find((s) => s.id === viewSubService?.service_id)?.city_id
-                  )?.name || "—"}
-                </span>
-              </div>
+              {/* Right Side: Detailed Details & Questions */}
+              <div className="w-full md:w-2/3 p-6 space-y-8">
+                {/* Plan Name Section */}
+                <div>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase">Selected Plan</label>
+                  <h2 className="text-3xl font-bold text-gray-900 leading-tight">
+                    {viewSubService.name}
+                  </h2>
+                </div>
 
-              {/* Plans Name */}
-              <div className="flex justify-between">
-                <span className="font-semibold text-gray-700">Plan Name:</span>
-                <span className="text-gray-900 font-medium">{viewSubService?.name}</span>
-              </div>
+                {/* Dynamic Questions Section */}
+                <div className="space-y-4">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase flex items-center gap-2">
+                    <HelpCircle size={14} /> Configured Questions
+                  </label>
 
-              {/* Price */}
-              <div className="flex justify-between">
-                <span className="font-semibold text-gray-700">Price:</span>
-                <span className="text-gray-900 font-bold">₹{viewSubService?.price}</span>
-              </div>
+                  {subServiceQuestions[viewSubService?.id]?.length ? (
+                    <div className="grid gap-3">
+                      {subServiceQuestions[viewSubService.id].map((q) => (
+                        <div key={q.id} className="border border-gray-100 rounded-xl p-4 bg-gray-50/50">
+                          <div className="flex justify-between items-start mb-2">
+                            <p className="font-bold text-gray-800 text-sm">{q.question}</p>
+                            <span className="text-[9px] bg-white border border-gray-200 px-2 py-0.5 rounded text-gray-500 uppercase font-bold">
+                              {q.type}
+                            </span>
+                          </div>
 
-              {/* Questions */}
-              <div>
-                <h3 className="font-semibold text-gray-800 mb-2">Questions</h3>
-                {subServiceQuestions[viewSubService?.id]?.length ? (
-                  <div className="space-y-3">
-                    {subServiceQuestions[viewSubService.id].map((q) => (
-                      <div key={q.id} className="border border-gray-200 rounded-lg p-3 bg-gray-50">
-                        <p className="font-medium text-gray-800 mb-1">
-                          {q.question} <span className="text-sm text-gray-500">({q.type})</span>
-                        </p>
-                        {q.options.length > 0 && (
-                          <div className="flex flex-wrap gap-2">
-                            {q.options.map((opt, i) => {
-                              if (typeof opt === "object" && opt.option && opt.price) {
+                          {q.options?.length > 0 && (
+                            <div className="flex flex-wrap gap-1.5 mt-2">
+                              {q.options.map((opt, i) => {
+                                const isObj = typeof opt === "object";
+                                const label = isObj ? opt.option : opt;
+                                const addPrice = isObj && opt.price ? `+₹${opt.price}` : "";
+
                                 return (
-                                  <span
-                                    key={i}
-                                    className="bg-gray-200 text-gray-800 px-3 py-1 rounded-full text-sm font-medium"
-                                  >
-                                    {opt.option} ₹{opt.price}
+                                  <span key={i} className="bg-white border border-gray-200 text-gray-600 px-2.5 py-1 rounded text-[10px] font-bold">
+                                    {label} <span className="text-gray-400">{addPrice}</span>
                                   </span>
                                 );
-                              }
-                              return (
-                                <span
-                                  key={i}
-                                  className="bg-gray-200 text-gray-800 px-3 py-1 rounded-full text-sm font-medium"
-                                >
-                                  {opt}
-                                </span>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-gray-500 italic">No questions added</p>
-                )}
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="py-6 text-center border-2 border-dashed border-gray-100 rounded-2xl">
+                      <p className="text-gray-400 text-xs italic">No additional questions defined for this plan.</p>
+                    </div>
+                  )}
+                </div>
               </div>
+            </div>
+
+            {/* Footer */}
+            <div className="bg-gray-50 p-4 border-t border-gray-200 flex justify-end shrink-0">
+              <button
+                onClick={() => setShowViewSubModal(false)}
+                className="px-8 py-2.5 bg-gray-900 text-white text-sm rounded-xl font-bold hover:bg-black transition-all active:scale-95 shadow-lg shadow-gray-200"
+              >
+                Close View
+              </button>
             </div>
           </div>
         </div>
@@ -723,315 +824,299 @@ export default function ServiceListPage() {
         </div>
       )}
 
-      {/* --- Edit Service Modal --- */}
+      {/* 🔹 Edit Service Modal (Horizontal Design) */}
       {showEditModal && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full relative shadow-xl">
-            <button
-              onClick={() => setShowEditModal(false)}
-              className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
-              aria-label="Close edit modal"
-            >
-              <X size={24} />
-            </button>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in duration-200 border border-gray-200">
 
-            <h2 className="text-xl font-bold mb-4">Edit Service</h2>
+            {/* Modal Header */}
+            <div className="bg-gray-50 border-b border-gray-200 p-4 flex justify-between items-center">
+              <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                <Edit3 size={20} className="text-gray-500" /> Edit Service
+              </h3>
+              <button
+                onClick={() => setShowEditModal(false)}
+                className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-1 rounded-full transition"
+              >
+                <X size={20} />
+              </button>
+            </div>
 
-            <form onSubmit={handleEditSubmit} className="space-y-4">
-              <div>
-                <label htmlFor="name" className="block font-semibold mb-1">
-                  Service Name
-                </label>
-                <input
-                  id="name"
-                  name="name"
-                  type="text"
-                  value={editServiceData.name}
-                  onChange={handleEditChange}
-                  className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500"
-                  required
-                />
+            <form onSubmit={handleEditSubmit}>
+              <div className="flex flex-col md:flex-row">
+                {/* Left Side: Metadata & Icon */}
+                <div className="w-full md:w-1/3 bg-gray-50 p-6 flex flex-col items-center justify-start border-b md:border-b-0 md:border-r border-gray-200">
+                  <div className="w-20 h-20 bg-white rounded-2xl border border-gray-300 flex items-center justify-center shadow-sm mb-6 text-red-600">
+                    <Briefcase size={32} />
+                  </div>
+
+                  <div className="w-full space-y-4">
+                    <div>
+                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">
+                        Assigned City
+                      </label>
+                      <select
+                        name="city_id"
+                        value={editServiceData.city_id ?? ""}
+                        onChange={handleEditChange}
+                        className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs font-bold text-gray-700 focus:ring-2 focus:ring-red-500 outline-none transition"
+                        required
+                      >
+                        <option value="" disabled>Select city</option>
+                        {cities.map((city) => (
+                          <option key={city.id} value={city.id}>{city.name}</option>
+                        ))}
+                      </select>
+                      <p className="text-[9px] text-gray-400 mt-1 flex items-center gap-1">
+                        <MapPin size={10} /> Determines visibility
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right Side: Form Fields */}
+                <div className="w-full md:w-2/3 p-6 space-y-5">
+                  <div>
+                    <label htmlFor="name" className="text-[10px] font-bold text-gray-400 uppercase block mb-1.5">
+                      Service Name
+                    </label>
+                    <input
+                      id="name"
+                      name="name"
+                      type="text"
+                      placeholder="e.g. Deep Cleaning"
+                      value={editServiceData.name}
+                      onChange={handleEditChange}
+                      className="w-full border border-gray-200 bg-gray-50/50 rounded-xl px-4 py-3 text-sm font-semibold text-gray-800 focus:bg-white focus:ring-2 focus:ring-red-500 outline-none transition"
+                      required
+                    />
+                  </div>
+
+
+                  <div className="p-4 bg-red-50 rounded-xl border border-red-100">
+                    <p className="text-[11px] text-red-700 font-medium leading-relaxed">
+                      <b>Note:</b> Changing the service name or city will update how it appears to customers on the frontend immediately.
+                    </p>
+                  </div>
+                </div>
               </div>
 
-              <div>
-                <label htmlFor="price" className="block font-semibold mb-1">
-                  Price (₹)
-                </label>
-                <input
-                  id="price"
-                  name="price"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={editServiceData.price}
-                  onChange={handleEditChange}
-                  className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500"
-                  required
-                />
-              </div>
-
-              <div>
-                <label htmlFor="city_id" className="block font-semibold mb-1">
-                  City
-                </label>
-                <select
-                  id="city_id"
-                  name="city_id"
-                  value={editServiceData.city_id ?? ""}
-                  onChange={handleEditChange}
-                  className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500"
-                  required
-                >
-                  <option value="" disabled>
-                    Select city
-                  </option>
-                  {cities.map((city) => (
-                    <option key={city.id} value={city.id}>
-                      {city.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="flex justify-end gap-3">
+              {/* Footer */}
+              <div className="bg-gray-50 p-4 border-t border-gray-200 flex justify-end gap-3">
                 <button
                   type="button"
                   onClick={() => setShowEditModal(false)}
-                  className="px-4 py-2 rounded border border-gray-300 hover:bg-gray-100 transition"
+                  className="px-6 py-2 text-sm font-bold text-gray-500 hover:text-gray-700 transition"
                 >
-                  Cancel
+                  Discard
                 </button>
                 <button
                   type="submit"
-                  className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition"
+                  className="px-8 py-2 bg-red-600 text-white text-sm rounded-lg font-bold hover:bg-red-700 transition-all active:scale-95 shadow-md shadow-red-100"
                 >
-                  Save
+                  Save Changes
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
-{/* --- Edit Plans Modal --- */}
-{showEditSubModal && (
-  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl relative overflow-y-auto max-h-[90vh]">
-      
-      {/* Close Button */}
-      <button
-        onClick={() => setShowEditSubModal(false)}
-        className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 transition"
-        aria-label="Close edit plan modal"
-      >
-        <X size={24} />
-      </button>
 
-      {/* Header */}
-      <div className="px-8 py-6 border-b border-gray-200">
-        <h2 className="text-3xl font-bold text-gray-800">Edit Plan</h2>
-        <p className="text-gray-500 mt-1">Update Plan details, questions, and options.</p>
-      </div>
+      {/* --- Edit Plans Modal --- */}
+      {/* 🔹 Edit Plans Modal (Horizontal & Scrollable Design) */}
+      {showEditSubModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden animate-in fade-in zoom-in duration-200 border border-gray-200 max-h-[90vh] flex flex-col">
 
-      {/* Form */}
-      <form onSubmit={handleEditSubSubmit} className="px-8 py-6 space-y-6">
-        
-        {/* Plan Info */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block font-semibold mb-1">Plan Name</label>
-            <input
-              type="text"
-              name="name"
-              value={editSubServiceData.name}
-              onChange={handleEditSubChange}
-              className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500"
-              placeholder="Enter plan name"
-              required
-            />
+            {/* Modal Header (Sticky) */}
+            <div className="bg-gray-50 border-b border-gray-200 p-4 flex justify-between items-center shrink-0">
+              <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                <Settings2 size={20} className="text-gray-500" /> Edit Plan Details
+              </h3>
+              <button
+                onClick={() => setShowEditSubModal(false)}
+                className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-1 rounded-full transition"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleEditSubSubmit} className="flex flex-col overflow-hidden">
+              <div className="overflow-y-auto p-6 space-y-8">
+
+                {/* Section 1: Basic Information */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="md:col-span-2">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1.5">Plan Name</label>
+                    <input
+                      type="text"
+                      name="name"
+                      value={editSubServiceData.name}
+                      onChange={handleEditSubChange}
+                      className="w-full border border-gray-200 bg-gray-50/50 rounded-xl px-4 py-2.5 text-sm font-semibold focus:bg-white focus:ring-2 focus:ring-red-500 outline-none transition"
+                      placeholder="e.g. Premium Deep Clean"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1.5">Base Price (₹)</label>
+                    <input
+                      type="number"
+                      name="price"
+                      value={editSubServiceData.price}
+                      onChange={handleEditSubChange}
+                      className="w-full border border-gray-200 bg-gray-50/50 rounded-xl px-4 py-2.5 text-sm font-bold focus:bg-white focus:ring-2 focus:ring-red-500 outline-none transition"
+                      required
+                    />
+                  </div>
+                  <div className="md:col-span-3">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1.5">Parent Service Category</label>
+                    <div className="relative">
+                      <Layers size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                      <select
+                        name="service_id"
+                        value={editSubServiceData.service_id ?? ""}
+                        onChange={handleEditSubChange}
+                        className="w-full border border-gray-200 bg-gray-50/50 rounded-xl pl-10 pr-4 py-2.5 text-sm font-semibold focus:bg-white focus:ring-2 focus:ring-red-500 outline-none transition appearance-none"
+                        required
+                      >
+                        <option value="" disabled>Select service</option>
+                        {services.map((service) => (
+                          <option key={service.id} value={service.id}>{service.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                <hr className="border-gray-100" />
+
+                {/* Section 2: Questions Configuration */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase flex items-center gap-2">
+                      <HelpCircle size={14} /> Plan Questions
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setEditQuestions([...editQuestions, { question: "", type: "select", options: [] }])}
+                      className="flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:text-blue-700 uppercase bg-blue-50 px-3 py-1.5 rounded-lg transition"
+                    >
+                      <Plus size={14} /> Add Question
+                    </button>
+                  </div>
+
+                  <div className="space-y-4">
+                    {editQuestions.map((q, qIndex) => (
+                      <div key={qIndex} className="bg-gray-50 rounded-2xl border border-gray-200 p-5 space-y-4 relative group">
+                        <div className="flex justify-between items-start">
+                          <span className="text-[10px] font-black text-gray-300 uppercase">Q. {qIndex + 1}</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const newQuestions = [...editQuestions];
+                              newQuestions.splice(qIndex, 1);
+                              setEditQuestions(newQuestions);
+                            }}
+                            className="text-gray-400 hover:text-red-600 transition"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+
+                        <input
+                          type="text"
+                          value={q.question}
+                          onChange={(e) => {
+                            const newQuestions = [...editQuestions];
+                            newQuestions[qIndex].question = e.target.value;
+                            setEditQuestions(newQuestions);
+                          }}
+                          placeholder="Ask something (e.g., Square Footage?)"
+                          className="w-full border border-gray-200 rounded-xl px-4 py-2 text-sm font-semibold outline-none focus:ring-2 focus:ring-red-400 transition"
+                        />
+
+                        {/* Options List */}
+                        <div className="space-y-2 pl-4 border-l-2 border-gray-200">
+                          <label className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">Options & Price Modifiers</label>
+                          {q.options.map((opt, oIndex) => (
+                            <div key={oIndex} className="flex gap-2 items-center animate-in slide-in-from-left-2 duration-150">
+                              <input
+                                type="text"
+                                value={opt.option}
+                                onChange={(e) => {
+                                  const newQuestions = [...editQuestions];
+                                  newQuestions[qIndex].options[oIndex].option = e.target.value;
+                                  setEditQuestions(newQuestions);
+                                }}
+                                placeholder="Label"
+                                className="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-xs outline-none focus:border-gray-400"
+                              />
+                              <div className="relative">
+                                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] text-gray-400 font-bold">₹</span>
+                                <input
+                                  type="number"
+                                  value={opt.price}
+                                  onChange={(e) => {
+                                    const newQuestions = [...editQuestions];
+                                    newQuestions[qIndex].options[oIndex].price = e.target.value;
+                                    setEditQuestions(newQuestions);
+                                  }}
+                                  placeholder="0"
+                                  className="w-24 border border-gray-200 rounded-lg pl-5 pr-2 py-1.5 text-xs font-bold outline-none focus:border-gray-400"
+                                />
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const newQuestions = [...editQuestions];
+                                  newQuestions[qIndex].options.splice(oIndex, 1);
+                                  setEditQuestions(newQuestions);
+                                }}
+                                className="p-1.5 text-gray-300 hover:text-red-500 transition"
+                              >
+                                <X size={14} />
+                              </button>
+                            </div>
+                          ))}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const newQuestions = [...editQuestions];
+                              newQuestions[qIndex].options.push({ option: "", price: "" });
+                              setEditQuestions(newQuestions);
+                            }}
+                            className="text-[10px] font-bold text-blue-600 hover:underline flex items-center gap-1 mt-2"
+                          >
+                            <Plus size={10} /> Add Option
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Modal Footer (Sticky) */}
+              <div className="bg-gray-50 p-4 border-t border-gray-200 flex justify-end gap-3 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setShowEditSubModal(false)}
+                  className="px-6 py-2 text-sm font-bold text-gray-500 hover:text-gray-700 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-8 py-2 bg-red-600 text-white text-sm rounded-xl font-bold hover:bg-black transition-all active:scale-95 shadow-md"
+                >
+                  Save Plan
+                </button>
+              </div>
+            </form>
           </div>
-
-          <div>
-            <label className="block font-semibold mb-1">Price (₹)</label>
-            <input
-              type="number"
-              name="price"
-              value={editSubServiceData.price}
-              min="0"
-              step="0.01"
-              onChange={handleEditSubChange}
-              className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500"
-              placeholder="Enter price"
-              required
-            />
-          </div>
         </div>
-
-        {/* Parent Service */}
-        <div>
-          <label className="block font-semibold mb-1">Parent Service</label>
-          <select
-            name="service_id"
-            value={editSubServiceData.service_id ?? ""}
-            onChange={handleEditSubChange}
-            className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500"
-            required
-          >
-            <option value="" disabled>Select service</option>
-            {services.map((service) => (
-              <option key={service.id} value={service.id}>{service.name}</option>
-            ))}
-          </select>
-        </div>
-
-{/* Questions Section */}
-<div>
-  <div className="flex items-center justify-between mb-2">
-    <label className="block font-semibold text-gray-800">Questions</label>
-    <button
-      type="button"
-      onClick={() =>
-        setEditQuestions([
-          ...editQuestions,
-          { question: "", type: "text", options: [] },
-        ])
-      }
-      className="text-green-600 hover:text-green-800 font-semibold"
-    >
-      + Add Question
-    </button>
-  </div>
-
-  <div className="space-y-4">
-    {editQuestions.map((q, qIndex) => (
-      <div
-        key={qIndex}
-        className="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-3 shadow-sm"
-      >
-        {/* Question Header */}
-        <div className="flex justify-between items-center">
-          <span className="font-medium text-gray-700">
-            Question {qIndex + 1}
-          </span>
-          <button
-            type="button"
-            onClick={() => {
-              const newQuestions = [...editQuestions];
-              newQuestions.splice(qIndex, 1);
-              setEditQuestions(newQuestions);
-            }}
-            className="text-red-600 hover:text-red-800 font-semibold"
-          >
-            Delete
-          </button>
-        </div>
-
-        {/* Question Text */}
-        <input
-          type="text"
-          value={q.question}
-          onChange={(e) => {
-            const newQuestions = [...editQuestions];
-            newQuestions[qIndex].question = e.target.value;
-            setEditQuestions(newQuestions);
-          }}
-          placeholder="Enter question text"
-          className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-400"
-        />
-
-      {/* Question Type */}
-<select
-  value={q.type}
-  onChange={(e) => {
-    const newQuestions = [...editQuestions];
-    newQuestions[qIndex].type = "select"; // always "select"
-    setEditQuestions(newQuestions);
-  }}
-  className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-400"
->
-  <option value="select">Multiple Choice</option>
-</select>
-
-{/* Options (always enabled) */}
-<div className="space-y-2">
-  {q.options.map((opt, oIndex) => (
-    <div key={oIndex} className="flex gap-2 items-center">
-      <input
-        type="text"
-        value={opt.option}
-        onChange={(e) => {
-          const newQuestions = [...editQuestions];
-          newQuestions[qIndex].options[oIndex].option = e.target.value;
-          setEditQuestions(newQuestions);
-        }}
-        placeholder="Option"
-        className="flex-1 border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-gray-400"
-      />
-      <input
-        type="number"
-        min="0"
-        value={opt.price}
-        onChange={(e) => {
-          const newQuestions = [...editQuestions];
-          newQuestions[qIndex].options[oIndex].price = e.target.value;
-          setEditQuestions(newQuestions);
-        }}
-        placeholder="Price"
-        className="w-24 border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-gray-400"
-      />
-      <button
-        type="button"
-        onClick={() => {
-          const newQuestions = [...editQuestions];
-          newQuestions[qIndex].options.splice(oIndex, 1);
-          setEditQuestions(newQuestions);
-        }}
-        className="text-red-600 hover:text-red-800 font-semibold"
-      >
-        Delete
-      </button>
-    </div>
-  ))}
-
-  <button
-    type="button"
-    onClick={() => {
-      const newQuestions = [...editQuestions];
-      newQuestions[qIndex].options.push({ option: "", price: "" });
-      setEditQuestions(newQuestions);
-    }}
-    className="text-blue-600 hover:text-blue-800 font-semibold mt-1"
-  >
-    + Add Option
-  </button>
-</div>
-
-      </div>
-    ))}
-  </div>
-</div>
-
-
-        {/* Form Actions */}
-        <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
-          <button
-            type="button"
-            onClick={() => setShowEditSubModal(false)}
-            className="px-4 py-2 rounded-lg border border-gray-300 hover:bg-gray-100 transition"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            className="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 transition"
-          >
-            Save Changes
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
-)}
-
+      )}
 
     </div>
   );

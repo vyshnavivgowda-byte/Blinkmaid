@@ -16,7 +16,6 @@ export default function AdminServices() {
   const { showToast } = useToast();
   const [selectedCity, setSelectedCity] = useState("");
   const [serviceName, setServiceName] = useState("");
-  const [servicePrice, setServicePrice] = useState("");
   const [subServices, setSubServices] = useState([]);
   const [serviceDescription, setServiceDescription] = useState("");
   const [selectedService, setSelectedService] = useState("");
@@ -44,7 +43,6 @@ export default function AdminServices() {
   const [errors, setErrors] = useState({
     selectedCity: "",
     serviceName: "",
-    servicePrice: "",
     serviceDescription: "",
     selectedService: "",
     subServiceName: "",
@@ -187,7 +185,6 @@ export default function AdminServices() {
     };
     if (!selectedCity) newErrors.selectedCity = "Please select a city.";
     if (!serviceName.trim()) newErrors.serviceName = "Service name is required.";
-    if (!servicePrice || parseFloat(servicePrice) <= 0) newErrors.servicePrice = "Price must be greater than 0.";
     const wordCount = serviceDescription.trim().split(/\s+/).filter(word => word).length;
     if (wordCount <= 1) newErrors.serviceDescription = "Description must be more than 10 letters.";
     if (!serviceImage) newErrors.serviceImage = "Please select a service image."; // Added
@@ -234,7 +231,6 @@ export default function AdminServices() {
         {
           name: serviceName,
           city_id: selectedCity,
-          price: parseFloat(servicePrice),
           description: serviceDescription,
           image_url: imageUrl,
         },
@@ -246,7 +242,6 @@ export default function AdminServices() {
 
       // Reset
       setServiceName("");
-      setServicePrice("");
       setServiceDescription("");
       setSelectedCity("");
       setServiceImage(null);
@@ -472,13 +467,6 @@ export default function AdminServices() {
                 value: serviceName,
                 onChange: (e) => setServiceName(e.target.value),
                 error: errors.serviceName,
-              },
-              {
-                label: "Price (₹)",
-                type: "number",
-                value: servicePrice,
-                onChange: (e) => setServicePrice(e.target.value),
-                error: errors.servicePrice,
               },
               {
                 label: "Description",
