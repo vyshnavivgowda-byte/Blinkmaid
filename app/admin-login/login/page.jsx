@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { Lock, User } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -17,8 +18,9 @@ export default function AdminLogin() {
     setError("");
     setLoading(true);
 
-    const adminEmail = "support@blinkmaid.com";
-    const adminPassword = "support@blinkmaid.com";
+    const adminEmail = "admin@blinkmaid.com";
+    const adminPassword = "BlinkMaid@2025";
+
 
     if (email === adminEmail && password === adminPassword) {
       localStorage.setItem("isAdminLoggedIn", "true");
@@ -38,21 +40,30 @@ export default function AdminLogin() {
         transition={{ duration: 0.6 }}
         className="relative bg-white/30 backdrop-blur-xl border border-white/40 shadow-2xl rounded-3xl p-10 w-full max-w-md"
       >
-        {/* Glow circle in background */}
+        {/* Glow Effects */}
         <div className="absolute -top-12 -right-12 w-32 h-32 bg-red-400/30 rounded-full blur-3xl"></div>
         <div className="absolute -bottom-12 -left-12 w-32 h-32 bg-pink-300/30 rounded-full blur-3xl"></div>
 
-        {/* Header */}
+        {/* Header with Logo */}
         <div className="text-center mb-8 relative z-10">
           <motion.div
-            initial={{ rotate: -10, scale: 0.8 }}
-            animate={{ rotate: 0, scale: 1 }}
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
             transition={{ duration: 0.5 }}
-            className="bg-red-500 w-16 h-16 mx-auto rounded-full flex items-center justify-center shadow-lg"
+            className="flex justify-center mb-4"
           >
-            <Lock size={28} className="text-white" />
+            <Image
+              src="/logosite.png"
+              alt="BlinkMaid Logo"
+              width={190}
+              height={190}
+              className="rounded-2xl shadow-xl"
+              priority
+            />
+
           </motion.div>
-          <h2 className="mt-5 text-3xl font-bold text-gray-900 tracking-wide">
+
+          <h2 className="text-3xl font-bold text-gray-900 tracking-wide">
             Admin Login
           </h2>
           <p className="text-gray-600 mt-1 text-sm font-medium">
@@ -60,7 +71,7 @@ export default function AdminLogin() {
           </p>
         </div>
 
-        {/* Error message */}
+        {/* Error Message */}
         {error && (
           <motion.p
             initial={{ opacity: 0 }}
@@ -71,34 +82,28 @@ export default function AdminLogin() {
           </motion.p>
         )}
 
-        {/* Form */}
+        {/* Login Form */}
         <form onSubmit={handleLogin} className="space-y-5 relative z-10">
           <div className="relative">
-            <User
-              className="absolute left-3 top-3 text-gray-500"
-              size={20}
-            />
+            <User className="absolute left-3 top-3 text-gray-500" size={20} />
             <input
               type="email"
               placeholder="Admin Email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full bg-white/80 text-black border border-gray-300 rounded-xl pl-10 py-3 focus:ring-2 focus:ring-red-400 focus:border-transparent outline-none placeholder-gray-600"
+              className="w-full bg-white/80 text-black border border-gray-300 rounded-xl pl-10 py-3 focus:ring-2 focus:ring-red-400 outline-none"
               required
             />
           </div>
 
           <div className="relative">
-            <Lock
-              className="absolute left-3 top-3 text-gray-500"
-              size={20}
-            />
+            <Lock className="absolute left-3 top-3 text-gray-500" size={20} />
             <input
               type="password"
               placeholder="Password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full bg-white/80 text-black border border-gray-300 rounded-xl pl-10 py-3 focus:ring-2 focus:ring-red-400 focus:border-transparent outline-none placeholder-gray-600"
+              className="w-full bg-white/80 text-black border border-gray-300 rounded-xl pl-10 py-3 focus:ring-2 focus:ring-red-400 outline-none"
               required
             />
           </div>
@@ -114,8 +119,24 @@ export default function AdminLogin() {
           </motion.button>
         </form>
 
+        {/* Admin Credentials Display */}
+        <div className="mt-6 bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm text-gray-700 relative z-10">
+          <p className="font-semibold text-gray-900 mb-1">
+            Admin Credentials
+          </p>
+          <p>
+            <span className="font-medium">Email:</span>{" "}
+            admin@blinkmaid.com          </p>
+          <p>
+            <span className="font-medium">Password:</span>{" "}
+            BlinkMaid@2025
+          </p>
+        </div>
+
+        {/* Footer */}
         <p className="text-center text-gray-600 text-sm mt-6 relative z-10">
-          © {new Date().getFullYear()} <span className="font-semibold">BlinkMaid</span>. All Rights Reserved.
+          © {new Date().getFullYear()}{" "}
+          <span className="font-semibold">BlinkMaid</span>. All Rights Reserved.
         </p>
       </motion.div>
     </div>

@@ -221,6 +221,7 @@ export default function MaidChangeDashboard() {
                     <tr className="bg-gray-100 text-gray-600 uppercase text-xs tracking-wide">
                       <th className="p-4 text-left">#</th>
                       <th className="p-4 text-left">Booking ID</th>
+                      <th className="p-4 text-left">Maid Name</th>
                       <th className="p-4 text-left">Change Reason</th>
                       <th className="p-4 text-left">Date</th>
                       <th className="p-4 text-center">Actions</th>
@@ -241,6 +242,10 @@ export default function MaidChangeDashboard() {
                           <span className="bg-gray-100 px-3 py-1 rounded-lg text-xs">
                             {r.booking_id}
                           </span>
+                        </td>
+
+                        <td className="p-4 text-gray-700 font-semibold">
+                          {r.previous_maid_id || "N/A"}
                         </td>
 
                         <td className="p-4 text-gray-600 max-w-md">

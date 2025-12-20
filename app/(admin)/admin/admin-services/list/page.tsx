@@ -32,16 +32,16 @@ export default function ServiceListPage() {
   const [viewSubServices, setViewSubServices] = useState([]);
   const [showViewModal, setShowViewModal] = useState(false);
 
-  // Sub-services modal state
+  // Plans modal state
   const [viewSubService, setViewSubService] = useState(null);
   const [showViewSubModal, setShowViewSubModal] = useState(false);
 
-  // Delete modal - general for both services and sub-services
+  // Delete modal - general for both services and Plans
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteItem, setDeleteItem] = useState({ id: null, type: null }); // type: "service" | "subService"
   const [editQuestions, setEditQuestions] = useState([]);
 
-  // Edit modal states for service & sub-service
+  // Edit modal states for service & Plans
   const [showEditModal, setShowEditModal] = useState(false);
   const [editServiceData, setEditServiceData] = useState({
     id: null,
@@ -114,7 +114,7 @@ export default function ServiceListPage() {
     setShowViewModal(true);
   };
 
-  // Delete service/sub-service
+  // Delete service/Plans
   const handleDelete = (id, type) => {
     setDeleteItem({ id, type });
     setShowDeleteModal(true);
@@ -136,10 +136,10 @@ export default function ServiceListPage() {
       setShowDeleteModal(false);
 
       if (!error) {
-        showToast("Sub-service deleted successfully", "success");
+        showToast("Plans deleted successfully", "success");
         fetchData();
       } else {
-        showToast("Failed to delete sub-service", "error");
+        showToast("Failed to delete Plans", "error");
       }
     }
   };
@@ -195,9 +195,9 @@ export default function ServiceListPage() {
     }
   };
 
-  // --- Sub-service Handlers ---
+  // --- Plans Handlers ---
 
-  // View sub-service details
+  // View plans details
   const handleViewSubService = (id) => {
     const sub = subServices.find((ss) => ss.id === id);
     if (sub) {
@@ -206,7 +206,7 @@ export default function ServiceListPage() {
     }
   };
 
-  // Edit sub-service open
+  // Edit Plans open
   const handleEditSubOpen = (id) => {
     const sub = subServices.find((ss) => ss.id === id);
     if (sub) {
@@ -217,7 +217,7 @@ export default function ServiceListPage() {
         price: sub.price,
       });
 
-      // 🔹 Set questions for this sub-service with proper options objects
+      // 🔹 Set questions for this Plans with proper options objects
       setEditQuestions(
         (subServiceQuestions[sub.id] || []).map((q) => ({
           id: q.id,
@@ -259,7 +259,7 @@ export default function ServiceListPage() {
     const { id, service_id, name, price } = editSubServiceData;
 
     if (!name.trim()) {
-      showToast("Sub-service name is required", "error");
+      showToast("Plans name is required", "error");
       return;
     }
     if (!price || isNaN(price) || Number(price) < 0) {
@@ -316,7 +316,7 @@ export default function ServiceListPage() {
     setShowEditSubModal(true);
   };
 
-  // --- Excel & PDF for sub-services ---
+  // --- Excel & PDF for Plans ---
 
   const downloadExcelSubServices = () => {
     const sheet = XLSX.utils.json_to_sheet(
@@ -478,10 +478,10 @@ export default function ServiceListPage() {
         </table>
       </div>
 
-      {/* --- Sub-Service List Section --- */}
+      {/* --- Plans List Section --- */}
       <div className="flex justify-between items-center mb-6 px-8 mt-16">
         <h1 className="text-3xl font-bold flex items-center gap-2">
-          <Layers className="text-red-600" /> Sub-Service List
+          <Layers className="text-red-600" /> Plans List
         </h1>
 
         <div className="flex gap-3">
@@ -502,7 +502,7 @@ export default function ServiceListPage() {
         </div>
       </div>
 
-      {/* --- Sub-Service Table --- */}
+      {/* --- Plans Table --- */}
       <div className="bg-white rounded-xl shadow border overflow-x-auto mx-8 mb-16">
         <table className="min-w-full text-sm">
           <thead className="bg-gray-100">
@@ -601,7 +601,7 @@ export default function ServiceListPage() {
         </div>
       )}
 
-      {/* --- View Sub-Service Modal --- */}
+      {/* --- View Plans Modal --- */}
       {showViewSubModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-3xl shadow-xl w-full max-w-lg relative overflow-y-auto max-h-[90vh]">
@@ -639,7 +639,7 @@ export default function ServiceListPage() {
                 </span>
               </div>
 
-              {/* Sub-Service Name */}
+              {/* Plans Name */}
               <div className="flex justify-between">
                 <span className="font-semibold text-gray-700">Plan Name:</span>
                 <span className="text-gray-900 font-medium">{viewSubService?.name}</span>
@@ -697,12 +697,12 @@ export default function ServiceListPage() {
         </div>
       )}
 
-      {/* --- Delete Modal (for service & sub-service) --- */}
+      {/* --- Delete Modal (for service & Plans) --- */}
       {showDeleteModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-xl max-w-sm w-full shadow-lg">
             <h3 className="font-bold mb-3">
-              Delete {deleteItem.type === "service" ? "Service" : "Sub-Service"}?
+              Delete {deleteItem.type === "service" ? "Service" : "Plans"}?
             </h3>
             <p className="mb-6 text-gray-600">This action cannot be undone.</p>
             <div className="flex justify-end gap-3">
@@ -812,7 +812,7 @@ export default function ServiceListPage() {
           </div>
         </div>
       )}
-{/* --- Edit Sub-Service Modal --- */}
+{/* --- Edit Plans Modal --- */}
 {showEditSubModal && (
   <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
     <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl relative overflow-y-auto max-h-[90vh]">

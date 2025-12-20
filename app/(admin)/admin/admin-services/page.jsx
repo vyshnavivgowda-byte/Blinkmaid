@@ -203,7 +203,7 @@ export default function AdminServices() {
       questions: "", // Added
     };
     if (!selectedService) newErrors.selectedService = "Please select a service.";
-    if (!subServiceName.trim()) newErrors.subServiceName = "Sub-service name is required.";
+    if (!subServiceName.trim()) newErrors.subServiceName = "Plan name is required.";
     if (!subServicePrice || parseFloat(subServicePrice) <= 0) newErrors.subServicePrice = "Price must be greater than 0.";
     if (questions.length === 0) newErrors.questions = "At least one question is required."; // Added
     setErrors(prev => ({ ...prev, ...newErrors }));
@@ -259,11 +259,11 @@ export default function AdminServices() {
     }
   };
 
-  // --- Add Sub-Service ---
+  // --- Add Plans ---
   const addSubService = async () => {
     if (!validateSubServiceForm()) return;
 
-    // Insert sub-service
+    // Insert Plans
     const { data: insertedSub, error: subErr } = await supabase
       .from("sub_services")
       .insert([
@@ -278,7 +278,7 @@ export default function AdminServices() {
 
     if (subErr) {
       console.error(subErr);
-      showToast("Error adding sub-service", "error");
+      showToast("Error adding Plans", "error");
     }
 
     // Insert related questions
@@ -296,11 +296,11 @@ export default function AdminServices() {
 
       if (qError) {
         console.error(qError);
-        alert("⚠️ Sub-service added, but failed to save questions!");
+        alert("⚠️ Plans added, but failed to save questions!");
       }
     }
 
-    showToast("Sub-Service added successfully!", "success");
+    showToast("Plans added successfully!", "success");
     setSubServiceName("");
     setSubServicePrice("");
     setSelectedService("");
@@ -411,7 +411,7 @@ export default function AdminServices() {
           Service Management
         </h1>
         <p className="text-gray-300 mt-2 text-lg">
-          Add, track, and organize all your services and sub-services
+          Add, track, and organize all your services and Plans
           efficiently.
         </p>
       </header>
@@ -579,12 +579,12 @@ export default function AdminServices() {
           </div>
         </section>
 
-        {/* 🟥 Add Sub-Service – Block Card UI */}
+        {/* 🟥 Add Plans – Block Card UI */}
         <section className="bg-white border border-gray-200 rounded-3xl shadow-md p-8">
           {/* Header */}
           <div className="mb-8 border-l-4 border-red-600 pl-4">
-            <h3 className="text-2xl font-bold text-gray-900">Add Sub-Service</h3>
-            <p className="text-gray-600">Fill the details below to create a sub-service.</p>
+            <h3 className="text-2xl font-bold text-gray-900">Add Plans</h3>
+            <p className="text-gray-600">Fill the details below to create a Plans.</p>
           </div>
 
           {/* Form Grid */}
@@ -610,14 +610,14 @@ export default function AdminServices() {
               {errors.selectedService && <p className="text-red-500 text-sm mt-1">{errors.selectedService}</p>}
             </div>
 
-            {/* Sub-Service Name */}
+            {/* Plans Name */}
             <div className="flex flex-col min-w-[350px]">
               <label className="text-gray-700 font-medium mb-2">Plan</label>
               <input
                 type="text"
                 value={subServiceName}
                 onChange={(e) => setSubServiceName(e.target.value)}
-                placeholder="Enter Sub-Service Name"
+                placeholder="Enter Plans Name"
                 className="p-3 rounded-xl bg-gray-50 border border-gray-300 focus:ring-2 focus:ring-red-500"
               />
               {errors.subServiceName && <p className="text-red-500 text-sm mt-1">{errors.subServiceName}</p>}
@@ -710,7 +710,7 @@ export default function AdminServices() {
               onClick={addSubService}
               className="px-10 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl shadow"
             >
-              + Add Sub-Service
+              + Add Plans
             </button>
           </div>
         </section>
@@ -816,7 +816,7 @@ export default function AdminServices() {
               <p><strong>Description:</strong> {viewService?.description}</p>
             </div>
 
-            <h3 className="text-lg font-semibold mb-2 text-gray-800">Sub-Services</h3>
+            <h3 className="text-lg font-semibold mb-2 text-gray-800">Plans</h3>
             {viewSubServices.length > 0 ? (
               <ul className="list-disc ml-5 space-y-1">
                 {viewSubServices.map((ss) => (
@@ -826,7 +826,7 @@ export default function AdminServices() {
                 ))}
               </ul>
             ) : (
-              <p className="text-gray-500 italic">No sub-services found.</p>
+              <p className="text-gray-500 italic">No Plans found.</p>
             )}
           </div>
         </div>
