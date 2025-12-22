@@ -1,6 +1,6 @@
 name: Build Android APK
 on:
-  workflow_dispatch: # Allows you to start the build manually
+  workflow_dispatch: # This adds the button on GitHub
 
 jobs:
   build:
@@ -36,5 +36,5 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: blinkmaid-debug-apk
+          name: blinkmaid-app
           path: android/app/build/outputs/apk/debug/app-debug.apk
