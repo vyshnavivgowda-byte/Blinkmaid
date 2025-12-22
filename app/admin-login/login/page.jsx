@@ -53,7 +53,7 @@ export default function AdminLogin() {
             className="flex justify-center mb-4"
           >
             <Image
-              src="/logosite.png"
+              src="/header_img.png"
               alt="BlinkMaid Logo"
               width={190}
               height={190}

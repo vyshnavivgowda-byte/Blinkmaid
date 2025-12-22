@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
 
-export async function POST(req) {
+export async function POST(req: Request) {
   try {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature } =
       await req.json();
@@ -33,13 +33,18 @@ export async function POST(req) {
       );
     }
 
-    // ✅ Payment verified successfully
     return NextResponse.json({ success: true, payment_status: "paid" });
-  } catch (err) {
+  } catch (err: unknown) {
     console.error("Payment verification failed:", err);
+
+    const message =
+      err instanceof Error ? err.message : "Unknown error";
+
     return NextResponse.json(
-      { success: false, error: "Verification failed", details: err.message || err },
+      { success: false, error: "Verification failed", details: message },
       { status: 500 }
     );
   }
+
+
 }

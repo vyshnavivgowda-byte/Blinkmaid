@@ -75,7 +75,8 @@ export default function ServiceBookingFlow() {
   const { Razorpay } = useRazorpay();
 
   /* ------------------------------
-     Initial Load
+     Initial Load: Fetch original service, cities, and user/subscriber status
+     (Removed sub_services fetch from here)
   ------------------------------ */
   useEffect(() => {
     if (!id) return;
@@ -90,18 +91,26 @@ export default function ServiceBookingFlow() {
           .single();
         if (serviceError) throw serviceError;
 
-        const { data: cities, error: citiesError } = await supabase.from("cities").select("*");
-        if (citiesError) throw citiesError;
+        // Fetch all services with the same name (trimmed and case-insensitive) to get associated city_ids
+        const serviceName = service.name.trim().toLowerCase();
+        const { data: relatedServices, error: relatedError } = await supabase
+          .from("services")
+          .select("city_id")
+          .ilike("name", `%${serviceName}%`); // Use ilike for case-insensitive and partial match
+        if (relatedError) throw relatedError;
 
-        const { data: subs, error: subsError } = await supabase
-          .from("sub_services")
+        // Extract unique city_ids
+        const cityIds = [...new Set(relatedServices.map(s => s.city_id).filter(Boolean))];
+
+        // Fetch cities that are associated with this service name
+        const { data: cities, error: citiesError } = await supabase
+          .from("cities")
           .select("*")
-          .eq("service_id", id);
-        if (subsError) throw subsError;
+          .in("id", cityIds);
+        if (citiesError) throw citiesError;
 
         setService(service);
         setCities(cities || []);
-        setSubServices(subs || []);
 
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
@@ -125,6 +134,44 @@ export default function ServiceBookingFlow() {
   }, [id]);
 
   /* ------------------------------
+     Fetch sub_services after city is selected (Step 1)
+     - Find the service in the selected city with the same name as the original service.
+     - Then fetch sub_services for that service's ID (making plans location-specific).
+  ------------------------------ */
+  useEffect(() => {
+    if (!selectedCity || !service) return;
+
+    const fetchSubServices = async () => {
+      try {
+        // Find the service in the selected city with a matching name (case-insensitive)
+        const serviceName = service.name.trim().toLowerCase();
+        const { data: matchingService, error: matchError } = await supabase
+          .from("services")
+          .select("id")
+          .eq("city_id", selectedCity.id)
+          .ilike("name", `%${serviceName}%`)
+          .single(); // Assumes one matching service per city; adjust if needed
+        if (matchError || !matchingService) {
+          throw new Error("No matching service found in the selected city. Please choose another location.");
+        }
+
+        // Fetch sub_services for the matching service's ID
+        const { data: subs, error: subsError } = await supabase
+          .from("sub_services")
+          .select("*")
+          .eq("service_id", matchingService.id);
+        if (subsError) throw subsError;
+
+        setSubServices(subs || []);
+      } catch (err) {
+        setError("Failed to load plans for the selected city: " + err.message);
+      }
+    };
+
+    fetchSubServices();
+  }, [selectedCity, service]);
+
+  /* ------------------------------
      Pricing
   ------------------------------ */
   useEffect(() => {
@@ -145,6 +192,7 @@ export default function ServiceBookingFlow() {
   const finalAmount = isSubscribed
     ? Math.round(totalPrice * 0.9)
     : totalPrice;
+
 
   if (loading) {
     return (
@@ -358,7 +406,7 @@ export default function ServiceBookingFlow() {
           {/* STEP 1: Location */}
           {step === 1 && (
             <motion.div {...fadeUp} key="city" className="space-y-8">
-              <div className="text-center">
+              <div key="city-content" className="text-center">
                 <h2 className="text-4xl font-bold text-blinkblack mb-4">Choose Your City</h2>
                 <p className="text-slate-500">Select the location for your service</p>
               </div>
@@ -444,6 +492,8 @@ export default function ServiceBookingFlow() {
               </div>
             </motion.div>
           )}
+
+          {/* STEP 3: Configuration
 
           {/* STEP 3: Configuration */}
           {step === 3 && (

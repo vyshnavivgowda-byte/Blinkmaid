@@ -5,15 +5,35 @@ import { motion } from "framer-motion";
 import { ArrowUpRight, Crown } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
+interface Service {
+  id: number;
+  name: string;
+  description: string;
+  image_url?: string;
+}
 
 export default function ServicesPage() {
-  const [services, setServices] = useState([]);
+  const [services, setServices] = useState<Service[]>([]);
   const router = useRouter();
 
   useEffect(() => {
     async function getData() {
-      const { data: sData } = await supabase.from("services").select("*");
-      if (sData) setServices(sData);
+      const { data: sData } = await supabase
+        .from("services")
+        .select("*")
+        .returns<Service[]>();
+      if (sData) {
+        // Filter to show only unique services based on normalized name (case-insensitive, trimmed)
+        const seen = new Set<string>();
+        const uniqueServices = sData.filter((service) => {
+
+          const normalizedName = service.name.trim().toLowerCase();
+          if (seen.has(normalizedName)) return false;
+          seen.add(normalizedName);
+          return true;
+        });
+        setServices(uniqueServices);
+      }
     }
     getData();
   }, []);

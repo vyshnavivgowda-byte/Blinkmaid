@@ -6,26 +6,27 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-export async function POST(req) {
+export async function POST(req: Request) {
   try {
     const { email } = await req.json();
 
-    if (!email) {
+    if (typeof email !== "string") {
       return NextResponse.json({ exists: false }, { status: 400 });
     }
 
-    const { data, error } = await supabaseAdmin.auth.admin.listUsers({
-      filter: `email=eq.${email}`,
-    });
+    const { data, error } =
+      await supabaseAdmin.auth.admin.listUsers();
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({
-      exists: data.users.length > 0,
-    });
-  } catch (err) {
+    const exists = data.users.some(
+      (user) => user.email?.toLowerCase() === email.toLowerCase()
+    );
+
+    return NextResponse.json({ exists });
+  } catch (err: unknown) {
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }

@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import React from "react";
 import { HiOutlineMail, HiOutlinePhone, HiOutlineLocationMarker } from "react-icons/hi";
 import { FaFacebookF, FaInstagram, FaTwitter, FaLinkedinIn } from "react-icons/fa6";
+import Image from "next/image";
 
 export default function Footer() {
   const linkClass = "relative text-gray-400 hover:text-blinkwhite transition-colors duration-300 group flex items-center";
@@ -26,9 +27,18 @@ export default function Footer() {
             viewport={{ once: true }}
           >
             <div>
-              <h2 className="text-4xl font-black tracking-tighter text-blinkwhite mb-2 uppercase">
-                BLINK<span className="text-blinkred">MAID.</span>
-              </h2>
+              <div className="flex flex-col gap-3">
+                <Image
+                  src="/footer_img.png"
+                  alt="Blinkmaid Logo"
+                  width={180}
+                  height={60}
+                  priority
+                  className="object-contain"
+                />
+                <div className="w-12 h-1 bg-blinkred"></div>
+              </div>
+
               <div className="w-12 h-1 bg-blinkred"></div>
             </div>
 
@@ -132,9 +142,15 @@ export default function Footer() {
 
         {/* --- FOOTER BOTTOM --- */}
         <div className="pt-12 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-6">
-          <p className="text-gray-500 text-sm font-medium">
-            &copy; {new Date().getFullYear()} <span className="text-blinkwhite">Blinkmaid</span>. Crafted for Excellence.
-          </p>
+     <p className="text-gray-500 text-sm font-medium text-center md:text-left leading-relaxed">
+  &copy; {new Date().getFullYear()}{" "}
+  <span className="text-blinkwhite font-semibold">Blinkmaid</span>. Crafted for Excellence.
+  <br className="md:hidden" />
+  <span className="block md:inline mt-1 md:mt-0 text-gray-400">
+    Designed & Developed by <span className="text-blinkwhite">Rakvih</span>
+  </span>
+</p>
+
 
         </div>
 

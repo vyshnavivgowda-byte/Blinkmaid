@@ -19,39 +19,82 @@ import jsPDF from "jspdf";
 import "jspdf-autotable";
 import { useToast } from "@/app/components/toast/ToastContext";
 
+// Define types for better TypeScript support
+interface City {
+  id: number;
+  name: string;
+}
+
+interface Service {
+  id: number;
+  name: string;
+  city_id: number;
+}
+
+interface SubService {
+  id: number;
+  service_id: number;
+  name: string;
+  price: number;
+  working_hours?: string;
+}
+
+interface QuestionOption {
+  option: string;
+  price: string;
+}
+
+interface Question {
+  id: number;
+  sub_service_id: number;
+  question: string;
+  type: "text" | "select" | "radio" | "checkbox";
+  options: QuestionOption[];
+}
+
+
 export default function ServiceListPage() {
   const { showToast } = useToast();
 
-  const [services, setServices] = useState([]);
-  const [cities, setCities] = useState([]);
-  const [subServices, setSubServices] = useState([]);
-  const [subServiceQuestions, setSubServiceQuestions] = useState({});
+  const [services, setServices] = useState<Service[]>([]);
+  const [cities, setCities] = useState<City[]>([]);
+  const [subServices, setSubServices] = useState<SubService[]>([]);
+  const [subServiceQuestions, setSubServiceQuestions] = useState<{ [key: number]: Question[] }>({});
 
   // Services modal state
-  const [viewService, setViewService] = useState(null);
-  const [viewCity, setViewCity] = useState(null);
-  const [viewSubServices, setViewSubServices] = useState([]);
+  const [viewService, setViewService] = useState<Service | null>(null);
+  const [viewCity, setViewCity] = useState<City | null>(null);
+  const [viewSubServices, setViewSubServices] = useState<SubService[]>([]);
   const [showViewModal, setShowViewModal] = useState(false);
 
   // Plans modal state
-  const [viewSubService, setViewSubService] = useState(null);
+  const [viewSubService, setViewSubService] = useState<SubService | null>(null);
   const [showViewSubModal, setShowViewSubModal] = useState(false);
 
   // Delete modal - general for both services and Plans
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [deleteItem, setDeleteItem] = useState({ id: null, type: null }); // type: "service" | "subService"
-  const [editQuestions, setEditQuestions] = useState([]);
+  const [deleteItem, setDeleteItem] = useState<{ id: number | null; type: "service" | "subService" | null }>({ id: null, type: null });
+  const [editQuestions, setEditQuestions] = useState<Question[]>([]);
 
   // Edit modal states for service & Plans
   const [showEditModal, setShowEditModal] = useState(false);
-  const [editServiceData, setEditServiceData] = useState({
+  const [editServiceData, setEditServiceData] = useState<{
+    id: number | null;
+    name: string;
+    city_id: number | null;
+  }>({
     id: null,
     name: "",
     city_id: null,
   });
 
   const [showEditSubModal, setShowEditSubModal] = useState(false);
-  const [editSubServiceData, setEditSubServiceData] = useState({
+  const [editSubServiceData, setEditSubServiceData] = useState<{
+    id: number | null;
+    service_id: number | null;
+    name: string;
+    price: string;
+  }>({
     id: null,
     service_id: null,
     name: "",
@@ -65,28 +108,39 @@ export default function ServiceListPage() {
     const { data: subData } = await supabase.from("sub_services").select("*");
     const { data: questionData } = await supabase.from("sub_service_questions").select("*");
 
-    setCities(cityData || []);
-    setServices(serviceData || []);
-    setSubServices(subData || []);
+    setCities(cityData as City[] || []);
+    setServices(serviceData as Service[] || []);
+    setSubServices(subData as SubService[] || []);
 
     // Organize questions by sub_service_id
-    const questionsMap = {};
-    (questionData || []).forEach((q) => {
+    const questionsMap: { [key: number]: Question[] } = {};
+    (questionData as Question[] || []).forEach((q) => {
       if (!questionsMap[q.sub_service_id]) {
         questionsMap[q.sub_service_id] = [];
       }
 
       questionsMap[q.sub_service_id].push({
         id: q.id,
+        sub_service_id: q.sub_service_id,
         question: q.question,
         type: q.type || "text",
         options: Array.isArray(q.options)
-          ? q.options.map((o) => {
-            // If it's an object with 'option', return that
-            if (typeof o === "object" && o.option) return `${o.option} (${o.price || "-"})`;
-            return o;
+          ? q.options.map((o): QuestionOption => {
+            if (typeof o === "object" && o !== null) {
+              return {
+                option: o.option ?? "",
+                price: o.price ?? "",
+              };
+            }
+
+            // fallback if old string data exists in DB
+            return {
+              option: String(o),
+              price: "",
+            };
           })
           : [],
+
       });
 
     });
@@ -103,19 +157,19 @@ export default function ServiceListPage() {
   // --- Service Handlers ---
 
   // View service
-  const handleView = (id) => {
+  const handleView = (id: number) => {
     const service = services.find((s) => s.id === id);
-    const city = cities.find((c) => c.id === service.city_id);
+    const city = cities.find((c) => c.id === service?.city_id);
     const subs = subServices.filter((ss) => ss.service_id === id);
 
-    setViewService(service);
-    setViewCity(city);
+    setViewService(service || null);
+    setViewCity(city || null);
     setViewSubServices(subs);
     setShowViewModal(true);
   };
 
   // Delete service/Plans
-  const handleDelete = (id, type) => {
+  const handleDelete = (id: number, type: "service" | "subService") => {
     setDeleteItem({ id, type });
     setShowDeleteModal(true);
   };
@@ -145,7 +199,7 @@ export default function ServiceListPage() {
   };
 
   // Edit service
-  const handleEditOpen = (id) => {
+  const handleEditOpen = (id: number) => {
     const service = services.find((s) => s.id === id);
     if (service) {
       setEditServiceData({
@@ -157,15 +211,15 @@ export default function ServiceListPage() {
     }
   };
 
-  const handleEditChange = (e) => {
+  const handleEditChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setEditServiceData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleEditSubmit = async (e) => {
+  const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const { id, name, price, city_id } = editServiceData;
+    const { id, name, city_id } = editServiceData;
 
     if (!name.trim()) {
       showToast("Service name is required", "error");
@@ -178,7 +232,7 @@ export default function ServiceListPage() {
 
     const { error } = await supabase
       .from("services")
-.update({ name: name.trim(), city_id })
+      .update({ name: name.trim(), city_id })
       .eq("id", id);
 
     if (!error) {
@@ -193,7 +247,7 @@ export default function ServiceListPage() {
   // --- Plans Handlers ---
 
   // View plans details
-  const handleViewSubService = (id) => {
+  const handleViewSubService = (id: number) => {
     const sub = subServices.find((ss) => ss.id === id);
     if (sub) {
       setViewSubService(sub);
@@ -202,40 +256,30 @@ export default function ServiceListPage() {
   };
 
   // Edit Plans open
-  const handleEditSubOpen = (id) => {
+  const handleEditSubOpen = (id: number) => {
     const sub = subServices.find((ss) => ss.id === id);
     if (sub) {
       setEditSubServiceData({
         id: sub.id,
         service_id: sub.service_id,
         name: sub.name,
-        price: sub.price,
+        price: sub.price.toString(),
       });
 
       // 🔹 Set questions for this Plans with proper options objects
       setEditQuestions(
         (subServiceQuestions[sub.id] || []).map((q) => ({
           id: q.id,
+          sub_service_id: q.sub_service_id,
           question: q.question,
           type: q.type || "text",
           options: Array.isArray(q.options)
-            ? q.options.map((o) => {
-              // If stored as "Option Name (Price)", split it
-              if (typeof o === "string" && o.includes("(") && o.includes(")")) {
-                const match = o.match(/(.*)\s*\$(.*)\$/);
-                return {
-                  option: match ? match[1].trim() : o,
-                  price: match ? match[2].trim() : "",
-                };
-              } else if (typeof o === "object") {
-                return {
-                  option: o.option || "",
-                  price: o.price || "",
-                };
-              }
-              return { option: o, price: "" };
-            })
+            ? q.options.map((o) => ({
+              option: o.option ?? "",
+              price: o.price ?? "",
+            }))
             : [],
+
         }))
       );
 
@@ -243,12 +287,12 @@ export default function ServiceListPage() {
     }
   };
 
-  const handleEditSubChange = (e) => {
+  const handleEditSubChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setEditSubServiceData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleEditSubSubmit = async (e) => {
+  const handleEditSubSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     const { id, service_id, name, price } = editSubServiceData;
@@ -257,7 +301,7 @@ export default function ServiceListPage() {
       showToast("Plans name is required", "error");
       return;
     }
-    if (!price || isNaN(price) || Number(price) < 0) {
+    if (!price || isNaN(Number(price)) || Number(price) < 0) {
       showToast("Valid price is required", "error");
       return;
     }
@@ -289,7 +333,7 @@ export default function ServiceListPage() {
     if (editQuestions.length > 0) {
       await supabase.from("sub_service_questions").insert(
         editQuestions.map((q) => ({
-          sub_service_id: id,
+          sub_service_id: q.sub_service_id,
           question: q.question,
           type: q.type,
           options: q.options,
@@ -300,15 +344,6 @@ export default function ServiceListPage() {
     showToast("Plan updated successfully", "success");
     fetchData();
     setShowEditSubModal(false);
-  };
-
-  const handleEditSubService = (sub) => {
-    setEditSubServiceData(sub);
-
-    // 👇 ADD THIS LINE HERE
-    setEditQuestions(subServiceQuestions[sub.id] || []);
-
-    setShowEditSubModal(true);
   };
 
   // --- Excel & PDF for Services ---
@@ -334,7 +369,7 @@ export default function ServiceListPage() {
     const doc = new jsPDF();
     doc.text("Service List", 14, 15);
 
-    doc.autoTable({
+    (doc as any).autoTable({
       head: [["#", "City", "Service"]],
       body: services.map((s, i) => {
         const city = cities.find((c) => c.id === s.city_id);
@@ -999,11 +1034,23 @@ export default function ServiceListPage() {
                     </label>
                     <button
                       type="button"
-                      onClick={() => setEditQuestions([...editQuestions, { question: "", type: "select", options: [] }])}
+                      onClick={() =>
+                        setEditQuestions([
+                          ...editQuestions,
+                          {
+                            id: Date.now(), // temporary unique ID
+                            sub_service_id: editSubServiceData.id ?? 0,
+                            question: "",
+                            type: "select",
+                            options: [],
+                          },
+                        ])
+                      }
                       className="flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:text-blue-700 uppercase bg-blue-50 px-3 py-1.5 rounded-lg transition"
                     >
                       <Plus size={14} /> Add Question
                     </button>
+
                   </div>
 
                   <div className="space-y-4">

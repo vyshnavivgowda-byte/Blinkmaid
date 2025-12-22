@@ -8,9 +8,22 @@ import {
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 
+interface RatingInputProps {
+  rating: number;
+  setRating: (rating: number) => void;
+}
+interface ToastProps {
+  message: string;
+  type: "success" | "error" | null;
+  onClose: () => void;
+}
+
+
+
 /* -------------------- PREMIUM TOAST -------------------- */
-const Toast = ({ message, type, onClose }) => {
-  if (!message) return null;
+const Toast = ({ message, type, onClose }: ToastProps) => {
+  if (!message || !type) return null;
+
   const isSuccess = type === "success";
   return (
     <AnimatePresence>
@@ -38,7 +51,7 @@ const Toast = ({ message, type, onClose }) => {
 };
 
 /* -------------------- RATING INPUT -------------------- */
-const RatingInput = ({ rating, setRating }) => (
+const RatingInput = ({ rating, setRating }: RatingInputProps) => (
   <div className="flex gap-2 py-2">
     {[1, 2, 3, 4, 5].map((star) => (
       <motion.button
@@ -60,13 +73,22 @@ const RatingInput = ({ rating, setRating }) => (
 export default function Contact() {
   const [formData, setFormData] = useState({ name: "", email: "", phone: "", message: "" });
   const [reviewData, setReviewData] = useState({ name: "", rating: 0, review: "" });
-  const [toast, setToast] = useState({ message: "", type: "" });
   const [contactLoading, setContactLoading] = useState(false);
   const [reviewLoading, setReviewLoading] = useState(false);
+  type ToastType = "success" | "error" | null;
 
-  const showToast = (message, type) => setToast({ message, type });
+  const [toast, setToast] = useState<{
+    message: string;
+    type: ToastType;
+  }>({
+    message: "",
+    type: null,
+  });
 
-  const handleSubmit = async (e) => {
+  const showToast = (message: string, type: "success" | "error") =>
+    setToast({ message, type });
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setContactLoading(true);
     try {
@@ -81,7 +103,7 @@ export default function Contact() {
     }
   };
 
-  const handleReviewSubmit = async (e) => {
+  const handleReviewSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!reviewData.rating) return showToast("A rating is required for submission.", "error");
     setReviewLoading(true);
@@ -99,7 +121,7 @@ export default function Contact() {
 
   return (
     <div className="bg-white text-blinkblack min-h-screen selection:bg-blinkred selection:text-white overflow-x-hidden">
-      <Toast {...toast} onClose={() => setToast({ message: "", type: "" })} />
+      <Toast {...toast} onClose={() => setToast({ message: "", type: null })} />
 
       {/* --- CINEMATIC HERO (Exactly as requested) --- */}
       <section className="relative w-full h-[85vh] flex items-end overflow-hidden">

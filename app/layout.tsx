@@ -20,10 +20,9 @@ export default function RootLayout({ children }: RootLayoutProps) {
           src="https://checkout.razorpay.com/v1/checkout.js"
           strategy="beforeInteractive"
         />
-     <ToastProvider>
-  {children}
-</ToastProvider>
-
+        <ToastProvider>
+          {children}
+        </ToastProvider>
       </body>
     </html>
   );

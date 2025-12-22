@@ -7,7 +7,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import logo from "@/public/logosite.png";
+import logo from "@/public/header_img.png";
 import { supabase } from "../../lib/supabaseClient";
 import { useToast } from "@/app/components/toast/ToastContext";
 

@@ -171,7 +171,19 @@ export default function Home() {
                     return;
                 }
 
-                setServices(data || []);
+                // Filter to show only unique services based on normalized name (case-insensitive, trimmed)
+                if (data) {
+                    const seen = new Set();
+                    const uniqueServices = data.filter(service => {
+                        const normalizedName = service.name.trim().toLowerCase();
+                        if (seen.has(normalizedName)) return false;
+                        seen.add(normalizedName);
+                        return true;
+                    });
+                    setServices(uniqueServices);
+                } else {
+                    setServices([]);
+                }
             } catch (error) {
                 console.error("Unexpected error in fetchServices:", error);
                 toast.error("Unexpected error while loading services.");
