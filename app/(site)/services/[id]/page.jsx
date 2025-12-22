@@ -1,4 +1,4 @@
-import ServiceBookingFlow from './ServiceBookingFlow'; // Check if the path is correct
+import ServiceBookingFlow from './ServiceBookingFlow'; // Ensure this matches your filename
 
 export const dynamic = 'force-static';
 
